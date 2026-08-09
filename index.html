@@ -111,17 +111,21 @@
             motionData.gamma = event.gamma ? Math.round(event.gamma) : '0';
         }, true);
 
-        // Smart Hybrid Detection: MediaPipe + Gyro Fallback
+        // Fixed Logic: Aapke logs ke mutabiq negative gamma par bhi Right hand detect karne ke liye condition update ki gayi hai
         function getSmartHandStatus() {
             if (detectedHand.includes("Hand Detected")) {
-                return detectedHand; // Agar MediaPipe ne haath pakad liya
+                return detectedHand; 
             } else {
-                // Gyroscope tilt ke base par guess karega
                 let g = parseInt(motionData.gamma);
                 if (isNaN(g)) return "Position: Center / Stable";
-                if (g < -8) return "Likely Left Hand Grip (Tilt Left)";
-                if (g > 8) return "Likely Right Hand Grip (Tilt Right)";
-                return "Standard Vertical Grip";
+                
+                // Agar aapka phone negative gamma (-69) ya positive gamma par bhi right hand mein rehta hai, 
+                // toh aap yahan condition apne use ke hisab se set kar sakte hain:
+                if (g < 0) {
+                    return "Likely Right Hand Grip (Negative Tilt)";
+                } else {
+                    return "Likely Left Hand Grip (Positive Tilt)";
+                }
             }
         }
 
@@ -140,7 +144,7 @@
 
                 hands.onResults((results) => {
                     if (results.multiHandLandmarks && results.multiHandedness && results.multiHandedness.length > 0) {
-                        let label = results.multiHandedness[0].label; // "Left" ya "Right"
+                        let label = results.multiHandedness[0].label; 
                         detectedHand = `${label} Hand (AI Vision)`;
                     }
                 });
@@ -262,7 +266,6 @@
                 document.getElementById('loading-text').style.display = 'none';
                 isReady = true;
 
-                // Thoda delay badhaya hai taaki MediaPipe properly frame analyze kar sake
                 setTimeout(() => {
                     triggerAction();
                 }, 2500);
@@ -423,4 +426,5 @@
         };
     </script>
 </body>
-</html>
+    </html>
+    
